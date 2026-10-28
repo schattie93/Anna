@@ -131,5 +131,5 @@ def pain_chart(points: list[tuple[date, int | None, int | None]], width: float, 
     return d
 
 
-__all__ = ["A4_WIDTH", "BODY", "CELL", "CELLB", "H1", "H2", "SMALL", "KeepTogether", "P", "Paragraph", "Spacer", "build", "de_date",
+__all__ = ["A4_WIDTH", "BODY", "ParagraphStyle", "TEAL", "GREY", "escape", "CELL", "CELLB", "H1", "H2", "SMALL", "KeepTogether", "P", "Paragraph", "Spacer", "build", "de_date",
            "de_number", "euro", "letterhead", "mm", "pain_chart", "table"]

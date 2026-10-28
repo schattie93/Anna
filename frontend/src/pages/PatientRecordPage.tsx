@@ -1,6 +1,6 @@
 import { Link, NavLink, useParams } from "react-router-dom";
 import { useState } from "react";
-import type { Anamnesis, Attachment, BodyMark, Diagnosis, Finding, Goal, Patient, Treatment } from "../api";
+import type { Anamnesis, Attachment, BodyMark, Diagnosis, ExercisePlan, Finding, Goal, Patient, Prescription, Treatment } from "../api";
 import { useUser } from "../auth";
 import { ErrorBox } from "../components/fields";
 import { useApi, useCatalog } from "../hooks";
@@ -8,11 +8,13 @@ import { INSURANCE, SIDE, age, formatDate } from "../labels";
 import AnamnesisTab from "./record/AnamnesisTab";
 import AtlasTab from "./record/AtlasTab";
 import DiagnosesTab from "./record/DiagnosesTab";
+import ExercisesTab from "./record/ExercisesTab";
 import FilesTab from "./record/FilesTab";
 import FindingsTab from "./record/FindingsTab";
 import GoalsTab from "./record/GoalsTab";
 import HistoryTab from "./record/HistoryTab";
 import OverviewTab from "./record/OverviewTab";
+import PrescriptionsTab from "./record/PrescriptionsTab";
 import ReportDialog from "./record/ReportDialog";
 import TreatmentsTab from "./record/TreatmentsTab";
 
@@ -22,7 +24,9 @@ const TABS = [
   ["diagnosen", "Diagnosen"],
   ["befunde", "Befunde"],
   ["koerperatlas", "Körperatlas"],
+  ["verordnungen", "Verordnungen"],
   ["behandlungen", "Behandlungen"],
+  ["uebungen", "Übungen"],
   ["dateien", "Bilder & Dokumente"],
   ["ziele", "Ziele"],
   ["protokoll", "Änderungsprotokoll"],
@@ -39,6 +43,8 @@ export default function PatientRecordPage() {
   const treatments = useApi<Treatment[]>(base && `${base}/treatments`);
   const findings = useApi<Finding[]>(base && `${base}/findings`);
   const goals = useApi<Goal[]>(base && `${base}/goals`);
+  const prescriptions = useApi<Prescription[]>(base && `${base}/prescriptions`);
+  const plans = useApi<ExercisePlan[]>(base && tab === "uebungen" ? `${base}/exercise-plans` : null);
   const marks = useApi<BodyMark[]>(base && tab === "koerperatlas" ? `${base}/body-marks` : null);
   const files = useApi<Attachment[]>(base && tab === "dateien" ? `${base}/attachments` : null);
   const catalog = useCatalog();
@@ -46,7 +52,7 @@ export default function PatientRecordPage() {
   if (patient.error) return <ErrorBox error={patient.error} />;
   const p = patient.data;
   if (!p || !catalog) return <p className="muted">Lade Patientenakte …</p>;
-  if (medical && (!anamneses.data || !diagnoses.data || !treatments.data || !findings.data || !goals.data)) return <p className="muted">Lade Patientenakte …</p>;
+  if (medical && (!anamneses.data || !diagnoses.data || !treatments.data || !findings.data || !goals.data || !prescriptions.data)) return <p className="muted">Lade Patientenakte …</p>;
   const tabs = medical ? TABS : TABS.slice(0, 1);
 
   const latestAnamnesis = anamneses.data?.find((a) => !a.voided);
@@ -109,7 +115,9 @@ export default function PatientRecordPage() {
       {medical && tab === "diagnosen" && <DiagnosesTab {...ctx} entries={diagnoses.data!} reload={diagnoses.reload} />}
       {medical && tab === "befunde" && <FindingsTab {...ctx} entries={findings.data!} reload={findings.reload} />}
       {medical && tab === "koerperatlas" && <AtlasTab patientId={p.id} entries={marks.data ?? []} reload={marks.reload} />}
-      {medical && tab === "behandlungen" && <TreatmentsTab {...ctx} entries={treatments.data!} diagnoses={diagnoses.data!} reload={treatments.reload} />}
+      {medical && tab === "behandlungen" && <TreatmentsTab {...ctx} entries={treatments.data!} diagnoses={diagnoses.data!} prescriptions={prescriptions.data!} reload={() => { treatments.reload(); prescriptions.reload(); }} />}
+      {medical && tab === "verordnungen" && <PrescriptionsTab patientId={p.id} entries={prescriptions.data!} reload={prescriptions.reload} defaultPhysician={p.referring_physician} />}
+      {medical && tab === "uebungen" && <ExercisesTab patientId={p.id} entries={plans.data ?? []} reload={plans.reload} />}
       {medical && tab === "dateien" && <FilesTab patientId={p.id} entries={files.data ?? []} reload={files.reload} />}
       {medical && tab === "ziele" && <GoalsTab patientId={p.id} entries={goals.data!} findings={findings.data!} reload={goals.reload} />}
       {medical && tab === "protokoll" && <HistoryTab patientId={p.id} />}

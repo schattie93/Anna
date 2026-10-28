@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .. import audit
 from ..db import get_db
 from ..deps import get_current_user, get_patient, require_medical
-from ..models import Anamnesis, Diagnosis, Patient, Treatment, TreatmentStatus, User
+from ..models import Anamnesis, Diagnosis, Patient, Prescription, Treatment, TreatmentStatus, User
 from ..schemas import (
     AnamnesisIn,
     AnamnesisOut,
@@ -167,6 +167,14 @@ def _check_diagnosis(db: Session, patient: Patient, diagnosis_id: int | None) ->
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Diagnose gehört nicht zu diesem Patienten")
 
 
+def _check_prescription(db: Session, patient: Patient, prescription_id: int | None) -> None:
+    if prescription_id is None:
+        return
+    rx = db.get(Prescription, prescription_id)
+    if not rx or rx.patient_id != patient.id or rx.voided:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Verordnung gehört nicht zu diesem Patienten")
+
+
 @router.get("/treatments", response_model=list[TreatmentOut])
 def list_treatments(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
     return _list(db, Treatment, patient, Treatment.treated_on.desc(), Treatment.id.desc())
@@ -177,6 +185,7 @@ def create_treatment(
     data: TreatmentIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     _check_diagnosis(db, patient, data.diagnosis_id)
+    _check_prescription(db, patient, data.prescription_id)
     entry = Treatment(**data.model_dump(exclude={"finalize"}), patient_id=patient.id, created_by_id=user.id)
     if data.finalize:
         entry.status = TreatmentStatus.final
@@ -200,6 +209,7 @@ def update_treatment(
     entry = _get_entry(db, Treatment, entry_id, patient)
     _ensure_not_voided(entry)
     _check_diagnosis(db, patient, data.diagnosis_id)
+    _check_prescription(db, patient, data.prescription_id)
     was_final = entry.status == TreatmentStatus.final
     reason = (data.correction_reason or "").strip() or None
     if was_final and not reason:

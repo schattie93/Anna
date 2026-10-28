@@ -1,4 +1,3 @@
-from datetime import date
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -7,8 +6,11 @@ from sqlalchemy.orm import Session, selectinload
 from ..catalog import FINDING_PRESETS, MEASURES, RED_FLAGS, TEST_RESULTS
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import AuditEntry, Patient, Role, Treatment, TreatmentStatus, User
-from ..schemas import Catalog, Dashboard, FindingPreset
+from ..models import Appointment, AppointmentStatus, AuditEntry, FollowUp, Patient, Prescription, Role, Treatment, TreatmentStatus, User
+from ..prescription_rules import evaluate
+from ..schemas import Catalog, Dashboard, FindingPreset, RxAttention, RxWarning
+from ..timeutil import day_range_utc, local_today
+from .scheduling import _follow_up_out, appointment_out
 
 router = APIRouter(prefix="/api", tags=["misc"])
 
@@ -48,9 +50,41 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     ).all()
     patients = {p.id: p for p in db.scalars(select(Patient).where(Patient.id.in_([r[0] for r in recent_ids])))}
 
+    today = local_today()
+    lo, hi = day_range_utc(today)
+    appointments = db.scalars(
+        select(Appointment)
+        .options(selectinload(Appointment.patient), selectinload(Appointment.therapist), selectinload(Appointment.prescription))
+        .where(Appointment.start >= lo, Appointment.start < hi, Appointment.status != AppointmentStatus.cancelled)
+        .order_by(Appointment.start)
+    )
+    follow_ups = db.scalars(
+        select(FollowUp)
+        .options(selectinload(FollowUp.patient), selectinload(FollowUp.created_by))
+        .where(FollowUp.done.is_(False), FollowUp.due_on <= today)
+        .order_by(FollowUp.due_on)
+        .limit(30)
+    )
+    attention: list[RxAttention] = []
+    if user.role != Role.reception:
+        for rx in db.scalars(select(Prescription).options(selectinload(Prescription.created_by)).where(Prescription.voided.is_(False))):
+            treatments = list(db.scalars(select(Treatment).where(Treatment.patient_id == rx.patient_id)))
+            info = evaluate(rx, treatments, today)
+            if info["status"] == "open" and info["warnings"]:
+                patient = db.get(Patient, rx.patient_id)
+                attention.append(
+                    RxAttention(
+                        patient=patient, prescription_id=rx.id, measure=rx.measure, units_done=info["units_done"],
+                        total_units=rx.total_units, warnings=[RxWarning(**w) for w in info["warnings"]],
+                    )
+                )
+
     return Dashboard(
+        appointments_today=[appointment_out(db, a) for a in appointments],
+        follow_ups_due=[_follow_up_out(f) for f in follow_ups],
+        rx_attention=attention,
         patient_count=db.scalar(select(func.count(Patient.id)).where(Patient.archived.is_(False))),
-        treatments_today=db.scalar(select(func.count(Treatment.id)).where(active, Treatment.treated_on == date.today())),
+        treatments_today=db.scalar(select(func.count(Treatment.id)).where(active, Treatment.treated_on == local_today())),
         open_treatments=open_treatments,
         recent_patients=[patients[r[0]] for r in recent_ids if r[0] in patients],
     )

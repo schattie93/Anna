@@ -87,6 +87,13 @@ class GoalStatus(str, enum.Enum):
     dropped = "dropped"
 
 
+class AppointmentStatus(str, enum.Enum):
+    planned = "planned"
+    done = "done"
+    cancelled = "cancelled"  # abgesagt
+    no_show = "no_show"  # nicht erschienen
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -216,6 +223,7 @@ class Treatment(TimestampMixin, VoidableMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
     diagnosis_id: Mapped[int | None] = mapped_column(ForeignKey("diagnoses.id"))
+    prescription_id: Mapped[int | None] = mapped_column(ForeignKey("prescriptions.id"))
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     treated_on: Mapped[date] = mapped_column(Date, index=True)
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
@@ -337,3 +345,118 @@ class TherapyGoal(TimestampMixin, VoidableMixin, Base):
     target_value: Mapped[float | None] = mapped_column(Float)
 
     created_by: Mapped[User] = relationship()
+
+
+class Prescription(TimestampMixin, VoidableMixin, Base):
+    """Heilmittelverordnung. Verbrauchte Einheiten ergeben sich aus den verknüpften, abgeschlossenen Behandlungen."""
+
+    __tablename__ = "prescriptions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    issued_on: Mapped[date] = mapped_column(Date)
+    physician: Mapped[str | None] = mapped_column(String(200))
+    diagnosis_text: Mapped[str | None] = mapped_column(Text)
+    icd10_code: Mapped[str | None] = mapped_column(String(16))
+    indication_key: Mapped[str | None] = mapped_column(String(16))  # Indikationsschlüssel, z. B. WS1
+    measure: Mapped[str] = mapped_column(String(120))  # verordnetes Heilmittel
+    total_units: Mapped[int] = mapped_column(Integer)
+    frequency: Mapped[str | None] = mapped_column(String(64))  # z. B. 2x pro Woche
+    urgent: Mapped[bool] = mapped_column(Boolean, default=False)  # dringlicher Behandlungsbedarf
+    home_visit: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    created_by: Mapped[User] = relationship()
+
+
+class Appointment(TimestampMixin, Base):
+    __tablename__ = "appointments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int | None] = mapped_column(ForeignKey("patients.id"), index=True)  # leer = Blockzeit
+    therapist_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    prescription_id: Mapped[int | None] = mapped_column(ForeignKey("prescriptions.id"))
+    treatment_id: Mapped[int | None] = mapped_column(ForeignKey("treatments.id"))
+    start: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[AppointmentStatus] = mapped_column(_enum(AppointmentStatus), default=AppointmentStatus.planned)
+    title: Mapped[str | None] = mapped_column(String(200))  # für Blockzeiten
+    note: Mapped[str | None] = mapped_column(Text)
+    cancel_reason: Mapped[str | None] = mapped_column(Text)
+
+    patient: Mapped[Patient | None] = relationship()
+    therapist: Mapped[User] = relationship()
+    prescription: Mapped[Prescription | None] = relationship()
+
+
+class FollowUp(TimestampMixin, Base):
+    """Wiedervorlage: Aufgabe/Erinnerung zu einem Patienten an einem Stichtag."""
+
+    __tablename__ = "follow_ups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    due_on: Mapped[date] = mapped_column(Date, index=True)
+    text: Mapped[str] = mapped_column(String(500))
+    done: Mapped[bool] = mapped_column(Boolean, default=False)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    patient: Mapped[Patient] = relationship()
+    created_by: Mapped[User] = relationship()
+
+
+class Exercise(TimestampMixin, Base):
+    """Übung der Übungsbibliothek."""
+
+    __tablename__ = "exercises"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(160), index=True)
+    region: Mapped[str | None] = mapped_column(String(64))
+    description: Mapped[str | None] = mapped_column(Text)
+    instructions: Mapped[str | None] = mapped_column(Text)
+    default_sets: Mapped[int | None] = mapped_column(Integer)
+    default_reps: Mapped[int | None] = mapped_column(Integer)
+    default_hold_seconds: Mapped[int | None] = mapped_column(Integer)
+    image_path: Mapped[str | None] = mapped_column(String(300))
+    image_content_type: Mapped[str | None] = mapped_column(String(64))
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ExercisePlan(TimestampMixin, VoidableMixin, Base):
+    __tablename__ = "exercise_plans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(200))
+    issued_on: Mapped[date] = mapped_column(Date)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    created_by: Mapped[User] = relationship()
+    items: Mapped[list["ExercisePlanItem"]] = relationship(
+        back_populates="plan", cascade="all, delete-orphan", order_by="ExercisePlanItem.position"
+    )
+
+
+class ExercisePlanItem(Base):
+    """Übung im Plan – Titel und Anleitung werden kopiert, damit spätere Bibliotheksänderungen ausgegebene Pläne nicht verändern."""
+
+    __tablename__ = "exercise_plan_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("exercise_plans.id", ondelete="CASCADE"), index=True)
+    exercise_id: Mapped[int | None] = mapped_column(ForeignKey("exercises.id"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    title: Mapped[str] = mapped_column(String(160))
+    instructions: Mapped[str | None] = mapped_column(Text)
+    sets: Mapped[int | None] = mapped_column(Integer)
+    reps: Mapped[int | None] = mapped_column(Integer)
+    hold_seconds: Mapped[int | None] = mapped_column(Integer)
+    frequency: Mapped[str | None] = mapped_column(String(120))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    plan: Mapped[ExercisePlan] = relationship(back_populates="items")
+    exercise: Mapped[Exercise | None] = relationship()

@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Layout from "./components/Layout";
+import CalendarPage from "./pages/CalendarPage";
 import DashboardPage from "./pages/DashboardPage";
+import ExerciseLibraryPage from "./pages/ExerciseLibraryPage";
 import LoginPage from "./pages/LoginPage";
 import PatientEditPage from "./pages/PatientEditPage";
 import PatientListPage from "./pages/PatientListPage";
@@ -17,6 +19,8 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="termine" element={<CalendarPage />} />
+        <Route path="uebungen" element={<ExerciseLibraryPage />} />
         <Route path="patienten" element={<PatientListPage />} />
         <Route path="patienten/neu" element={<PatientEditPage />} />
         <Route path="patienten/:id/bearbeiten" element={<PatientEditPage />} />

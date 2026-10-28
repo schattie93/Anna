@@ -15,6 +15,9 @@ export const MARK_KIND: Record<string, string> = {
 };
 export const GOAL_STATUS: Record<string, string> = { open: "offen", achieved: "erreicht", dropped: "verworfen" };
 
+export const APPT_STATUS: Record<string, string> = { planned: "geplant", done: "durchgeführt", cancelled: "abgesagt", no_show: "nicht erschienen" };
+export const RX_STATUS: Record<string, string> = { open: "offen", completed: "ausgeschöpft", expired: "verfallen" };
+
 export const ACTION: Record<string, string> = {
   create: "angelegt",
   update: "geändert",
@@ -22,6 +25,11 @@ export const ACTION: Record<string, string> = {
   void: "storniert",
 };
 export const ENTITY: Record<string, string> = {
+  prescription: "Verordnung",
+  appointment: "Termin",
+  follow_up: "Wiedervorlage",
+  exercise: "Übung",
+  exercise_plan: "Übungsplan",
   finding: "Befund",
   body_mark: "Körperatlas-Markierung",
   attachment: "Datei",
@@ -72,9 +80,35 @@ export const FIELD: Record<string, string> = {
   treated_on: "Datum", diagnosis_id: "Diagnose", duration_minutes: "Dauer (min)", measures: "Maßnahmen",
   subjective: "Subjektiv", objective: "Objektiv", assessment: "Beurteilung", plan: "Plan",
   pain_before: "Schmerz vorher", pain_after: "Schmerz nachher", home_exercises: "Hausübungen",
+  issued_on: "Ausgestellt am", physician: "Verordner/in", diagnosis_text: "Diagnose (Text)", indication_key: "Indikationsschlüssel",
+  measure: "Heilmittel", total_units: "Einheiten", frequency: "Frequenz", urgent: "Dringlich", home_visit: "Hausbesuch",
+  prescription_id: "Verordnung", start: "Beginn", end: "Ende", title: "Titel",
   category: "Kategorie", name: "Bezeichnung", value_num: "Messwert", value_text: "Ergebnis", unit: "Einheit",
   view: "Ansicht", x: "Position X", y: "Position Y", kind: "Art", intensity: "Intensität", note: "Notiz",
   caption: "Beschriftung", taken_on: "Aufnahmedatum", ocr_text: "Erkannter Text", target_date: "Zieldatum",
   achieved_on: "Erreicht am", metric_name: "Messgröße", metric_side: "Messseite", baseline_value: "Ausgangswert",
   target_value: "Zielwert",
 };
+
+export function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+}
+
+export const WEEKDAY = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+/** Montag der Woche, in der `d` liegt (lokale Zeit, 00:00). */
+export function weekStart(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+
+export function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+export function isoDate(d: Date): string {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}

@@ -909,3 +909,227 @@ ins {
   padding-top: 0.75rem;
   border-top: 1px dashed var(--border);
 }
+
+/* --- Phase 3: Kalender, Verordnungen, Übungen ---------------------------- */
+
+.cal {
+  padding: 0;
+  overflow-x: auto;
+}
+.cal-head,
+.cal-body {
+  display: grid;
+  grid-template-columns: 52px repeat(var(--cols), minmax(110px, 1fr));
+  min-width: 640px;
+}
+.cal-head {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.cal-day {
+  padding: 0.6rem 0.4rem;
+  text-align: center;
+  font-weight: 600;
+  border-left: 1px solid var(--border);
+}
+.cal-day.today {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.cal-title {
+  margin: 0;
+}
+.cal-body {
+  position: relative;
+}
+.cal-hours {
+  position: relative;
+}
+.cal-hours span {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.cal-col {
+  position: relative;
+  border-left: 1px solid var(--border);
+  cursor: cell;
+}
+.cal-col i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+  pointer-events: none;
+}
+.appt {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  overflow: hidden;
+  padding: 2px 6px;
+  border: 0;
+  border-left: 4px solid var(--primary);
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.appt strong,
+.appt span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.appt span {
+  color: var(--muted);
+}
+.appt.done {
+  border-left-color: var(--ok);
+  opacity: 0.75;
+}
+.appt.no_show {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+.appt.block {
+  border-left-color: var(--muted);
+  background: var(--border);
+}
+
+.picker {
+  position: relative;
+}
+.picker-list {
+  position: absolute;
+  inset: calc(100% + 4px) 0 auto;
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+}
+.picker-list button {
+  display: block;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.picker-list button:hover {
+  background: var(--primary-soft);
+}
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--touch);
+}
+
+.row-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: var(--touch);
+  color: var(--text);
+}
+.block {
+  display: block;
+}
+.mini {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg);
+}
+.follow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+}
+.follow a {
+  flex: 1;
+  padding-inline: 0;
+}
+.follow-form {
+  display: grid;
+  grid-template-columns: 170px 1fr auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.75rem;
+}
+.small-text {
+  font-size: 0.85rem;
+}
+.rx-warnings {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+.rx-warnings li {
+  padding: 0.3rem 0;
+}
+.rx-warnings .warn {
+  color: var(--danger);
+  font-weight: 600;
+}
+.rx-warnings .info {
+  color: var(--muted);
+}
+.plan-list {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.3rem;
+}
+.plan-item {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.plan-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.lib-chips {
+  margin-top: 0.75rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .follow-form {
+    grid-template-columns: 1fr;
+  }
+}

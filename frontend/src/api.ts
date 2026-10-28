@@ -104,6 +104,7 @@ export type Diagnosis = DiagnosisData & MedicalMeta;
 export interface TreatmentData {
   treated_on: string;
   diagnosis_id: number | null;
+  prescription_id: number | null;
   duration_minutes: number | null;
   measures: string[];
   subjective: string | null;
@@ -134,7 +135,107 @@ export interface Dashboard {
   treatments_today: number;
   open_treatments: { id: number; patient_id: number; treated_on: string; patient: PatientListItem }[];
   recent_patients: PatientListItem[];
+  appointments_today: Appointment[];
+  follow_ups_due: FollowUp[];
+  rx_attention: {
+    patient: PatientListItem;
+    prescription_id: number;
+    measure: string;
+    units_done: number;
+    total_units: number;
+    warnings: RxWarning[];
+  }[];
 }
+
+export interface RxWarning {
+  level: "warn" | "info";
+  text: string;
+}
+
+export interface PrescriptionData {
+  issued_on: string;
+  physician: string | null;
+  diagnosis_text: string | null;
+  icd10_code: string | null;
+  indication_key: string | null;
+  measure: string;
+  total_units: number;
+  frequency: string | null;
+  urgent: boolean;
+  home_visit: boolean;
+  notes: string | null;
+}
+export type Prescription = PrescriptionData &
+  MedicalMeta & {
+    units_done: number;
+    units_remaining: number;
+    status: "open" | "completed" | "expired";
+    latest_start: string | null;
+    warnings: RxWarning[];
+  };
+
+export type AppointmentStatus = "planned" | "done" | "cancelled" | "no_show";
+export interface Appointment {
+  id: number;
+  patient: PatientListItem | null;
+  therapist: { id: number; full_name: string };
+  prescription_id: number | null;
+  prescription_label: string | null;
+  treatment_id: number | null;
+  start: string;
+  end: string;
+  status: AppointmentStatus;
+  title: string | null;
+  note: string | null;
+  cancel_reason: string | null;
+}
+
+export interface AppointmentCreated {
+  created: Appointment[];
+  skipped: { start: string; reason: string }[];
+}
+
+export interface FollowUp {
+  id: number;
+  patient: PatientListItem;
+  due_on: string;
+  text: string;
+  done: boolean;
+  done_at: string | null;
+  created_by: { id: number; full_name: string };
+}
+
+export interface ExerciseData {
+  title: string;
+  region: string | null;
+  description: string | null;
+  instructions: string | null;
+  default_sets: number | null;
+  default_reps: number | null;
+  default_hold_seconds: number | null;
+}
+export interface Exercise extends ExerciseData {
+  id: number;
+  archived: boolean;
+  has_image: boolean;
+}
+
+export interface PlanItemData {
+  exercise_id: number | null;
+  title: string;
+  instructions: string | null;
+  sets: number | null;
+  reps: number | null;
+  hold_seconds: number | null;
+  frequency: string | null;
+  notes: string | null;
+}
+export interface PlanItem extends PlanItemData {
+  id: number;
+  position: number;
+  has_image: boolean;
+}
+export type ExercisePlan = MedicalMeta & { title: string; issued_on: string; notes: string | null; items: PlanItem[] };
 
 export type FindingCategory = "rom" | "strength" | "test" | "measure";
 

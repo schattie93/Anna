@@ -58,18 +58,18 @@ def _encode(image: Image.Image, fmt: str) -> bytes:
     return out.getvalue()
 
 
-def save_upload(patient_id: int, data: bytes) -> StoredFile:
+def save_upload(owner: int | str, data: bytes, allow_pdf: bool = True) -> StoredFile:
     limit = get_settings().max_upload_mb * 1024 * 1024
     if not data:
         raise _bad("Leere Datei")
     if len(data) > limit:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, f"Datei größer als {get_settings().max_upload_mb} MB")
 
-    folder = root() / str(patient_id)
+    folder = root() / str(owner)
     folder.mkdir(parents=True, exist_ok=True)
     token = secrets.token_hex(16)
 
-    if data[:5] == b"%PDF-":
+    if allow_pdf and data[:5] == b"%PDF-":
         content_type, ext, payload, thumb = "application/pdf", ".pdf", data, None
     else:
         try:

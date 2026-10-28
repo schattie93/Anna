@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom";
-import type { Dashboard } from "../api";
+import { api, type Dashboard } from "../api";
+import { useUser } from "../auth";
 import { ErrorBox } from "../components/fields";
 import PatientSearch from "../components/PatientSearch";
 import { useApi } from "../hooks";
-import { formatDate } from "../labels";
+import { APPT_STATUS, formatDate, formatTime } from "../labels";
 
 export default function DashboardPage() {
-  const { data, error } = useApi<Dashboard>("/dashboard");
+  const { data, error, reload } = useApi<Dashboard>("/dashboard");
+  const medical = useUser().role !== "reception";
 
   return (
     <div className="stack">
@@ -31,6 +33,80 @@ export default function DashboardPage() {
               <span className="stat-value">+</span>
               <span className="stat-label">Neuer Patient</span>
             </Link>
+          </div>
+
+          <div className="grid-2">
+            <section className="card">
+              <div className="page-head">
+                <h2>Heute</h2>
+                <Link to="/termine" className="btn small">
+                  Kalender
+                </Link>
+              </div>
+              {data.appointments_today.length === 0 ? (
+                <p className="muted">Keine Termine heute.</p>
+              ) : (
+                <ul className="list">
+                  {data.appointments_today.map((a) => (
+                    <li key={a.id}>
+                      <Link to={a.patient ? `/patienten/${a.patient.id}` : "/termine"}>
+                        <strong>
+                          {formatTime(a.start)} {a.patient ? `${a.patient.last_name}, ${a.patient.first_name}` : (a.title ?? "Blockzeit")}
+                        </strong>
+                        <span className="muted">
+                          {a.therapist.full_name}
+                          {a.prescription_label ? ` · ${a.prescription_label}` : ""} · {APPT_STATUS[a.status]}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            {(data.follow_ups_due.length > 0 || data.rx_attention.length > 0) && (
+              <section className="card">
+                <h2>Zu erledigen</h2>
+                <ul className="list">
+                  {data.follow_ups_due.map((f) => (
+                    <li key={`f${f.id}`} className="follow">
+                      <Link to={`/patienten/${f.patient.id}`}>
+                        <strong>
+                          {f.patient.last_name}, {f.patient.first_name}
+                        </strong>
+                        <span className="muted">
+                          Wiedervorlage {formatDate(f.due_on)}: {f.text}
+                        </span>
+                      </Link>
+                      <button
+                        className="btn small"
+                        onClick={async () => {
+                          await api(`/follow-ups/${f.id}`, { method: "PATCH", body: { done: true } });
+                          reload();
+                        }}
+                      >
+                        ✓
+                      </button>
+                    </li>
+                  ))}
+                  {medical &&
+                    data.rx_attention.map((r) => (
+                      <li key={`r${r.prescription_id}`}>
+                        <Link to={`/patienten/${r.patient.id}/verordnungen`}>
+                          <strong>
+                            {r.patient.last_name}, {r.patient.first_name} · {r.measure} {r.units_done}/{r.total_units}
+                          </strong>
+                          {r.warnings.map((w) => (
+                            <span key={w.text} className={w.level === "warn" ? "danger-text small-text" : "muted"}>
+                              {w.level === "warn" ? "⚠ " : "ℹ "}
+                              {w.text}
+                            </span>
+                          ))}
+                        </Link>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            )}
           </div>
 
           <div className="grid-2">

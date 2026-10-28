@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, 
 
 from .catalog import RED_FLAGS, TEST_RESULTS
 from .models import (
+    AppointmentStatus,
     AttachmentKind,
     BodyView,
     DiagnosisStatus,
@@ -238,6 +239,7 @@ class DiagnosisOut(MedicalOut, DiagnosisBase):
 class TreatmentBase(BaseModel):
     treated_on: date
     diagnosis_id: int | None = None
+    prescription_id: int | None = None
     duration_minutes: Annotated[int, Field(ge=1, le=480)] | None = None
     measures: list[str] = []
     subjective: str | None = None
@@ -286,11 +288,23 @@ class AuditOut(ORM):
     reason: str | None
 
 
+class RxAttention(BaseModel):
+    patient: PatientListItem
+    prescription_id: int
+    measure: str
+    units_done: int
+    total_units: int
+    warnings: list["RxWarning"]
+
+
 class Dashboard(BaseModel):
     patient_count: int
     treatments_today: int
     open_treatments: list[OpenTreatment]
     recent_patients: list[PatientListItem]
+    appointments_today: list["AppointmentOut"] = []
+    follow_ups_due: list["FollowUpOut"] = []
+    rx_attention: list[RxAttention] = []
 
 
 class FindingPreset(BaseModel):
@@ -441,3 +455,182 @@ class PracticeSettings(BaseModel):
     invoice_vat_note: str | None = None
     invoice_payment_days: str | None = None
     invoice_footer: str | None = None
+
+
+# --- Verordnungen --------------------------------------------------------------
+
+
+class PrescriptionBase(BaseModel):
+    issued_on: date
+    physician: str | None = None
+    diagnosis_text: str | None = None
+    icd10_code: str | None = None
+    indication_key: str | None = None
+    measure: NonEmpty
+    total_units: Annotated[int, Field(ge=1, le=60)]
+    frequency: str | None = None
+    urgent: bool = False
+    home_visit: bool = False
+    notes: str | None = None
+
+
+class PrescriptionIn(PrescriptionBase):
+    pass
+
+
+class PrescriptionUpdate(PrescriptionBase):
+    correction_reason: str | None = None
+
+
+class RxWarning(BaseModel):
+    level: str
+    text: str
+
+
+class PrescriptionOut(MedicalOut, PrescriptionBase):
+    units_done: int = 0
+    units_remaining: int = 0
+    status: str = "open"
+    latest_start: date | None = None
+    warnings: list[RxWarning] = []
+
+
+# --- Termine & Wiedervorlagen ---------------------------------------------------
+
+
+class AppointmentIn(BaseModel):
+    patient_id: int | None = None
+    therapist_id: int | None = None
+    prescription_id: int | None = None
+    start: datetime
+    duration_minutes: Annotated[int, Field(ge=5, le=480)] = 30
+    title: str | None = None
+    note: str | None = None
+    repeat_count: Annotated[int, Field(ge=1, le=52)] = 1
+    repeat_days: Annotated[int, Field(ge=1, le=60)] = 7
+    force: bool = False
+
+    @model_validator(mode="after")
+    def patient_or_title(self):
+        if self.patient_id is None and not (self.title or "").strip():
+            raise ValueError("Termin braucht einen Patienten oder eine Bezeichnung (Blockzeit)")
+        return self
+
+
+class AppointmentUpdate(BaseModel):
+    start: datetime | None = None
+    duration_minutes: Annotated[int, Field(ge=5, le=480)] | None = None
+    status: AppointmentStatus | None = None
+    prescription_id: int | None = None
+    title: str | None = None
+    note: str | None = None
+    cancel_reason: str | None = None
+    force: bool = False
+
+
+class AppointmentOut(ORM):
+    id: int
+    patient: PatientListItem | None
+    therapist: Author
+    prescription_id: int | None
+    prescription_label: str | None = None
+    treatment_id: int | None
+    start: datetime
+    end: datetime
+    status: AppointmentStatus
+    title: str | None
+    note: str | None
+    cancel_reason: str | None
+
+
+class SkippedAppointment(BaseModel):
+    start: datetime
+    reason: str
+
+
+class AppointmentCreated(BaseModel):
+    created: list[AppointmentOut]
+    skipped: list[SkippedAppointment]
+
+
+class ReminderOut(BaseModel):
+    appointment: AppointmentOut
+    phone: str | None
+    mobile: str | None
+
+
+class FollowUpIn(BaseModel):
+    due_on: date
+    text: NonEmpty
+
+
+class FollowUpOut(ORM):
+    id: int
+    patient: PatientListItem
+    due_on: date
+    text: str
+    done: bool
+    done_at: datetime | None
+    created_by: Author
+
+
+# --- Übungen --------------------------------------------------------------------
+
+
+class ExerciseBase(BaseModel):
+    title: NonEmpty
+    region: str | None = None
+    description: str | None = None
+    instructions: str | None = None
+    default_sets: Annotated[int, Field(ge=1, le=20)] | None = None
+    default_reps: Annotated[int, Field(ge=1, le=200)] | None = None
+    default_hold_seconds: Annotated[int, Field(ge=1, le=600)] | None = None
+
+
+class ExerciseIn(ExerciseBase):
+    pass
+
+
+class ExerciseUpdate(ExerciseBase):
+    archived: bool = False
+
+
+class ExerciseOut(ORM, ExerciseBase):
+    id: int
+    archived: bool
+    has_image: bool = False
+
+
+class PlanItemBase(BaseModel):
+    exercise_id: int | None = None
+    title: NonEmpty
+    instructions: str | None = None
+    sets: Annotated[int, Field(ge=1, le=20)] | None = None
+    reps: Annotated[int, Field(ge=1, le=200)] | None = None
+    hold_seconds: Annotated[int, Field(ge=1, le=600)] | None = None
+    frequency: str | None = None
+    notes: str | None = None
+
+
+class PlanItemOut(ORM, PlanItemBase):
+    id: int
+    position: int
+    has_image: bool = False
+
+
+class ExercisePlanIn(BaseModel):
+    title: NonEmpty
+    issued_on: date
+    notes: str | None = None
+    items: Annotated[list[PlanItemBase], Field(min_length=1, max_length=40)]
+
+
+class ExercisePlanOut(MedicalOut):
+    title: str
+    issued_on: date
+    notes: str | None
+    items: list[PlanItemOut]
+
+
+Dashboard.model_rebuild()
+RxAttention.model_rebuild()

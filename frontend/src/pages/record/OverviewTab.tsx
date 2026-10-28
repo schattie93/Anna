@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Anamnesis, Catalog, Diagnosis, Patient, Treatment } from "../../api";
+import AgendaCard from "../../components/AgendaCard";
 import { INSURANCE, SEX, formatDate } from "../../labels";
 import { Detail } from "./common";
 
@@ -46,6 +47,8 @@ export default function OverviewTab({
           <Detail label="Notizen" value={p.notes} />
         </dl>
       </section>
+
+      <AgendaCard patient={p} />
 
       {medical && (
       <section className="card">

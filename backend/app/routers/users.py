@@ -4,12 +4,18 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..db import get_db
-from ..deps import require_admin
-from ..models import User, UserSession
+from ..deps import get_current_user, require_admin
+from ..models import Role, User, UserSession
 from ..schemas import UserCreate, UserOut, UserUpdate
 from ..security import hash_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+
+@router.get("/therapists", response_model=list[UserOut])
+def list_therapists(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """Aktive Behandler/innen (für die Terminvergabe; auch für den Empfang)."""
+    return db.scalars(select(User).where(User.is_active.is_(True), User.role != Role.reception).order_by(User.full_name)).all()
 
 
 @router.get("", response_model=list[UserOut])

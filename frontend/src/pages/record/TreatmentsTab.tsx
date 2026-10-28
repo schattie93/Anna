@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { api, type Catalog, type Diagnosis, type Treatment, type TreatmentData } from "../../api";
+import { api, type Catalog, type Diagnosis, type Prescription, type Treatment, type TreatmentData } from "../../api";
 import { Chips, ErrorBox, Field, PainScale, ReasonDialog, TextArea, TextField, useForm } from "../../components/fields";
 import { formatDate, formatDateTime, today } from "../../labels";
 import { Detail, EntryCard, TabHead, useVoidedToggle, type TabProps } from "./common";
 
-function blank(previous: Treatment | undefined, diagnoses: Diagnosis[]): TreatmentData {
+function blank(previous: Treatment | undefined, diagnoses: Diagnosis[], prescriptions: Prescription[]): TreatmentData {
   const primary = diagnoses.find((d) => d.is_primary && !d.voided);
   return {
     treated_on: today(),
     diagnosis_id: previous?.diagnosis_id ?? primary?.id ?? null,
+    prescription_id: prescriptions.find((r) => !r.voided && r.status === "open")?.id ?? null,
     duration_minutes: previous?.duration_minutes ?? null,
     measures: [],
     subjective: null,
@@ -26,8 +27,9 @@ export default function TreatmentsTab({
   catalog,
   entries,
   diagnoses,
+  prescriptions,
   reload,
-}: TabProps<Treatment> & { diagnoses: Diagnosis[] }) {
+}: TabProps<Treatment> & { diagnoses: Diagnosis[]; prescriptions: Prescription[] }) {
   const [editing, setEditing] = useState<Treatment | "new" | null>(null);
   const { showVoided, toggle } = useVoidedToggle();
   const previous = entries.find((t) => !t.voided);
@@ -38,6 +40,7 @@ export default function TreatmentsTab({
         patientId={patientId}
         catalog={catalog}
         diagnoses={diagnoses}
+        prescriptions={prescriptions}
         entry={editing === "new" ? null : editing}
         previous={editing === "new" ? previous : undefined}
         onDone={() => {
@@ -51,6 +54,10 @@ export default function TreatmentsTab({
 
   const visible = entries.filter((t) => showVoided || !t.voided);
   const diagnosisName = (id: number | null) => diagnoses.find((d) => d.id === id)?.description;
+  const rxLabel = (id: number | null) => {
+    const r = prescriptions.find((x) => x.id === id);
+    return r ? `${r.measure} vom ${formatDate(r.issued_on)} (${r.units_done}/${r.total_units})` : null;
+  };
 
   return (
     <div className="stack">
@@ -76,6 +83,7 @@ export default function TreatmentsTab({
         >
           <dl className="details">
             <Detail label="Diagnose" value={diagnosisName(t.diagnosis_id)} />
+            <Detail label="Verordnung" value={rxLabel(t.prescription_id)} />
             <Detail label="Dauer" value={t.duration_minutes && `${t.duration_minutes} min`} />
             <Detail label="Maßnahmen" value={t.measures.join(", ")} />
             <Detail
@@ -99,6 +107,7 @@ function TreatmentForm({
   patientId,
   catalog,
   diagnoses,
+  prescriptions,
   entry,
   previous,
   onDone,
@@ -107,12 +116,13 @@ function TreatmentForm({
   patientId: number;
   catalog: Catalog;
   diagnoses: Diagnosis[];
+  prescriptions: Prescription[];
   entry: Treatment | null;
   previous: Treatment | undefined;
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const [t, set, setAll] = useForm<TreatmentData>(entry ?? blank(previous, diagnoses));
+  const [t, set, setAll] = useForm<TreatmentData>(entry ?? blank(previous, diagnoses, prescriptions));
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<{ finalize: boolean } | null>(null);
   const isFinal = entry?.status === "final";
@@ -183,6 +193,18 @@ function TreatmentForm({
                 {d.description}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="Verordnung" wide>
+          <select value={t.prescription_id ?? ""} onChange={(e) => set("prescription_id", e.target.value ? Number(e.target.value) : null)}>
+            <option value="">– keine Zuordnung –</option>
+            {prescriptions
+              .filter((r) => !r.voided && (r.status === "open" || r.id === t.prescription_id))
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.measure} vom {formatDate(r.issued_on)} ({r.units_done}/{r.total_units} Einheiten)
+                </option>
+              ))}
           </select>
         </Field>
         <Chips label="Maßnahmen" options={measureOptions} value={t.measures} onChange={(v) => set("measures", v)} />

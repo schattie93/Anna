@@ -34,7 +34,7 @@ interface TextProps {
   value: string | null;
   onChange: (v: string | null) => void;
   required?: boolean;
-  type?: "text" | "date" | "email" | "tel" | "number" | "password";
+  type?: "text" | "date" | "datetime-local" | "email" | "tel" | "number" | "password";
   hint?: string;
   wide?: boolean;
   autoFocus?: boolean;

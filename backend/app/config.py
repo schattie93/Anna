@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./physioflow-dev.db"
     session_hours: int = 12
+    timezone: str = "Europe/Berlin"  # Praxis-Zeitzone für Tagesgrenzen (Termine, Fristen)
     # Must be true as soon as the app is served via HTTPS (production).
     cookie_secure: bool = False
     # Geschützter lokaler Speicher für Bilder, PDFs und Zeichnungen (liegt NICHT im Web-Verzeichnis).
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
     max_upload_mb: int = 25
     max_failed_logins: int = 5
     lockout_minutes: int = 15
+    # Fristen für Heilmittelverordnungen (Prüfhinweise). Bitte mit der aktuellen Heilmittel-Richtlinie abgleichen.
+    rx_start_days: int = 28
+    rx_urgent_start_days: int = 14
+    rx_max_break_days: int = 14
     # Lokale Assistenzdienste (alle optional; nur Adressen im eigenen Netz sind erlaubt)
     whisper_url: str | None = None
     ocr_enabled: bool = True
