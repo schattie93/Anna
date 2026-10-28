@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
-from .routers import admin, assist, auth, billing, documentation, exercises, medical, misc, patients, prescriptions, reports, scheduling, settings, stats, users
+from .routers import admin, assist, auth, billing, documentation, exercises, medical, misc, patients, prescriptions, reports, scheduling, settings, stats, sync, users
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSRF_HEADER = "x-physioflow"
@@ -41,7 +41,7 @@ app.include_router(prescriptions.catalog_router)
 app.include_router(exercises.library)
 app.include_router(exercises.plans)
 
-for module in (auth, users, settings, patients, medical, documentation, prescriptions, scheduling, reports, assist, billing, stats, admin, misc):
+for module in (auth, users, settings, patients, medical, documentation, prescriptions, scheduling, reports, assist, billing, stats, admin, sync, misc):
     app.include_router(module.router)
 
 

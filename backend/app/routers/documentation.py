@@ -202,15 +202,8 @@ async def upload_attachment(
     return _attachment_out(entry)
 
 
-@router.post("/treatments/{treatment_id}/signature", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
-async def sign_treatment(
-    treatment_id: int,
-    file: UploadFile = File(...),
-    patient: Patient = Depends(get_patient),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """Leistungsnachweis: Unterschrift des Patienten (PNG von der Zeichenfläche) für eine Behandlung."""
+def store_signature(db: Session, patient: Patient, treatment_id: int, data: bytes, user: User) -> Attachment:
+    """Legt die Unterschrift (PNG) für eine Behandlung ab. Wird auch von der Offline-Übertragung genutzt."""
     t = db.get(Treatment, treatment_id)
     if not t or t.patient_id != patient.id or t.voided:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Behandlung nicht gefunden")
@@ -219,7 +212,6 @@ async def sign_treatment(
     ).first()
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "Für diese Behandlung liegt bereits eine Unterschrift vor (zuerst stornieren)")
-    data = await file.read(storage.get_settings().max_upload_mb * 1024 * 1024 + 1)
     stored = storage.save_upload(patient.id, data, allow_pdf=False)
     if stored.content_type != "image/png":
         storage.resolve(stored.path).unlink(missing_ok=True)
@@ -233,7 +225,20 @@ async def sign_treatment(
     db.flush()
     audit.log(db, user, "create", "attachment", entry.id, patient.id, changes={"kind": "signature", "treatment_id": t.id, "sha256": entry.sha256})
     db.commit()
-    return _attachment_out(entry)
+    return entry
+
+
+@router.post("/treatments/{treatment_id}/signature", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
+async def sign_treatment(
+    treatment_id: int,
+    file: UploadFile = File(...),
+    patient: Patient = Depends(get_patient),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Leistungsnachweis: Unterschrift des Patienten (PNG von der Zeichenfläche) für eine Behandlung."""
+    data = await file.read(storage.get_settings().max_upload_mb * 1024 * 1024 + 1)
+    return _attachment_out(store_signature(db, patient, treatment_id, data, user))
 
 
 @router.patch("/attachments/{entry_id}", response_model=AttachmentOut)

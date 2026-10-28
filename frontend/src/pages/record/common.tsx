@@ -47,8 +47,9 @@ export function EntryCard({
           {title}
           {badges}
           {entry.voided && <span className="badge">storniert</span>}
+          {entry.pending && <span className="badge warn" title={entry.pending_error ?? "Wird übertragen, sobald eine Verbindung besteht"}>{entry.pending_error ? "Übertragung fehlgeschlagen" : "offline erfasst – noch nicht übertragen"}</span>}
         </h3>
-        {!entry.voided && (
+        {!entry.voided && !entry.pending && (
           <div className="entry-actions">
             <button className="btn small" onClick={onEdit}>
               Bearbeiten

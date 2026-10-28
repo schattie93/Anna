@@ -3,6 +3,7 @@ import { api, type Indication, type PracticeSettings, type Role, type User } fro
 import { useAuth, useUser } from "../auth";
 import { ErrorBox, Select, TextField } from "../components/fields";
 import { useApi } from "../hooks";
+import { OfflineCard } from "../offline/OfflineUI";
 import { ROLE } from "../labels";
 
 export default function SettingsPage() {
@@ -11,6 +12,7 @@ export default function SettingsPage() {
     <div className="stack">
       <h1>Einstellungen</h1>
       <PasswordForm />
+      {user.role !== "reception" && <OfflineCard />}
       <SessionsCard />
       {user.role === "admin" && <PracticeForm />}
       {user.role === "admin" && <IndicationCatalog />}

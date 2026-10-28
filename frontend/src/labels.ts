@@ -19,6 +19,8 @@ export const APPT_STATUS: Record<string, string> = { planned: "geplant", done: "
 export const RX_STATUS: Record<string, string> = { open: "offen", completed: "ausgeschöpft", expired: "verfallen" };
 
 export const ACTION: Record<string, string> = {
+  sync: "offline erfasst und übertragen",
+  prefetch: "für Offline-Nutzung geladen",
   create: "angelegt",
   update: "geändert",
   correct: "korrigiert",
@@ -27,6 +29,7 @@ export const ACTION: Record<string, string> = {
 export const ENTITY: Record<string, string> = {
   examination: "Erstbefund",
   catalog: "Vorlage",
+  signature: "Unterschrift",
   indication: "Heilmittelkatalog",
   invoice: "Rechnung",
   payment: "Zahlung",

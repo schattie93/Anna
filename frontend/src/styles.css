@@ -1351,3 +1351,23 @@ code {
   min-height: 36px;
   padding: 0 0.6rem;
 }
+
+.offline-banner.sync {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.offline-banner .btn {
+  margin-left: 0.5rem;
+}
+.sync-failed {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  text-align: left;
+  color: var(--danger);
+  background: var(--surface);
+  border-radius: 8px;
+}
+.sync-failed li {
+  padding: 0.5rem 0.75rem;
+}

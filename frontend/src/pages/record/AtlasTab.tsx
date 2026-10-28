@@ -32,6 +32,7 @@ export default function AtlasTab({ patientId, entries, reload }: { patientId: nu
   }
 
   function select(m: BodyMark) {
+    if (m.pending) return; // noch nicht übertragen: Bearbeiten erst danach möglich
     setSelected(m);
     setNoteDraft(m.note ?? "");
   }

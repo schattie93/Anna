@@ -1,5 +1,7 @@
 # Fachliche Prüfung – Checkliste für die Praxis
 
+> **Anpassen ohne Programmierung:** Warnzeichen, psychosoziale Faktoren, Maßnahmen und Befundvorlagen (inkl. Richtwerte) pflegt der Administrator unter **Verwaltung → Fachliche Vorlagen**. Dort erscheinen die mitgelieferten Werte als „ungeprüft“, bis sie freigegeben werden. Der Heilmittelkatalog steht unter Einstellungen, die Übungen unter „Übungen“. Die Spalte „Wo im Programm / Code“ unten nennt noch die Standardwerte im Quelltext, die nur beim ersten Start als Vorlage dienen.
+
 PhysioFlow wurde **nicht** von einer Physiotherapeutin oder einem Physiotherapeuten fachlich geprüft. Alle fachlichen Vorlagen stammen aus allgemeinem Wissen und können unvollständig oder falsch sein. Diese Liste zeigt, was die Praxis vor dem Produktivbetrieb durchsehen sollte. Bitte Ergebnisse mit Datum und Namen festhalten.
 
 | Bereich | Wo im Programm / Code | Was prüfen | Status |

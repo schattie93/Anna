@@ -21,6 +21,11 @@ export function useApi<T>(path: string | null) {
   }, [path, version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
+  // Nach der Übertragung offline erfasster Einträge die Daten neu laden (echte statt vorläufiger Kennungen)
+  useEffect(() => {
+    window.addEventListener("physioflow:synced", reload);
+    return () => window.removeEventListener("physioflow:synced", reload);
+  }, [reload]);
   return { data, error, reload };
 }
 

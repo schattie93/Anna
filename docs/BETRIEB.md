@@ -146,7 +146,23 @@ Alle mit Präfix `PHYSIOFLOW_`:
 - Lasttest: `python scripts/loadtest.py --url https://<host> --user <benutzer> --password ... --users 8 --seconds 30 --insecure`
   Auf einem Entwicklungsrechner mit 8 gleichzeitigen Benutzern lagen die Antwortzeiten bei etwa 20 ms (Median) und unter 100 ms (95 %). Eine einzelne Praxis braucht wesentlich weniger. Auf dem NAS bitte selbst messen.
 
-## 10. Offene Entscheidungen
+## 10. Arbeiten ohne WLAN (Offline-Modus)
 
-- **Arbeiten bei WLAN-Ausfall:** Aktuell zeigt die Oberfläche eine Warnung, wenn der Server nicht erreichbar ist. Offene Formulare bleiben auf dem Bildschirm, werden aber nicht lokal gespeichert, damit keine Patientendaten auf den Tablets liegen. Ein echter Offline-Modus (zwischengespeicherte Akten, Warteschlange) ist ein eigenes Vorhaben mit Sicherheits- und Konfliktfragen und muss bewusst entschieden werden. Praktische Lösung bis dahin: ein eigener, robuster Access Point für den Behandlungsraum.
+Für die Tablets gibt es einen Offline-Modus, der bei WLAN-Ausfall die Arbeit in der Behandlung ermöglicht.
+
+**Einrichten (einmal je Gerät):** Die Seite über das vertrauenswürdige HTTPS öffnen (Zertifikat installiert, siehe Abschnitt 2), anmelden, dann **Einstellungen → Offline-Modus** → eine Passphrase (mind. 8 Zeichen) festlegen. Danach „Jetzt für Offline vorbereiten“. Auf dem iPad die Seite zusätzlich **„Zum Home-Bildschirm“** hinzufügen, sonst kann Safari lokale Daten nach längerer Nichtnutzung löschen. Auf Android die Seite als App installieren.
+
+**Was funktioniert offline:**
+- Die Oberfläche startet auch ohne Server (Service Worker).
+- Akten der Patienten, die heute Termine haben oder zuletzt geöffnet wurden, sind lesbar. Sie werden automatisch beim Arbeiten und alle 10 Minuten aktualisiert, solange der Offline-Speicher entsperrt ist.
+- **Neu erfassen** lassen sich Behandlungen (auch abschließen), Messwerte/Tests, Körperatlas-Markierungen, Erstbefund, Anamnese und die **Unterschrift des Patienten**. Sie erscheinen mit dem Vermerk „offline erfasst – noch nicht übertragen“ und werden bei Verbindung automatisch übertragen. Das Änderungsprotokoll hält fest, dass sie offline erfasst wurden, und wann.
+
+**Was nicht geht:** Korrigieren und Stornieren, Fotos/Dokumente hochladen, Rechnungen, neue Patienten, Termine ändern, KI-Funktionen. Dadurch können keine Konflikte mit anderen Änderungen entstehen. Patienten ohne Termin, die vorher nicht geöffnet wurden, sind offline nicht verfügbar.
+
+**Sicherheit:** Die lokalen Daten sind mit einem Schlüssel aus Ihrer Passphrase verschlüsselt (AES-256, PBKDF2). Der Schlüssel liegt nur im Arbeitsspeicher; nach 15 Minuten ohne Bedienung oder beim Abmelden ist der Speicher wieder gesperrt. Das ersetzt **nicht** die Gerätesicherung: Tablets brauchen Sperrcode, Geräteverschlüsselung und Fernlöschung. Eine kurze oder leicht zu erratende Passphrase ist angreifbar, wenn jemand den Speicher eines verlorenen Geräts ausliest, deshalb eine ausreichend lange Passphrase wählen. Wer die Passphrase vergisst, kann den lokalen Speicher nur löschen. Noch nicht übertragene Einträge gehen dabei verloren, deshalb vor dem Löschen die Verbindung herstellen.
+
+**Praxisregel:** Nach einem WLAN-Ausfall im Programm prüfen, dass keine Einträge mehr „warten“. Bei einem Übertragungsfehler zeigt die rote Leiste die Ursache, der Eintrag lässt sich erneut versuchen oder verwerfen.
+
+## 11. Offene Entscheidungen
+
 - NAS-Modell, RAM, Container-Unterstützung bestätigen (Abschnitt 1).

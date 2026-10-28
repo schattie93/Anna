@@ -54,7 +54,7 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     # Zuletzt vom angemeldeten Benutzer geöffnete oder bearbeitete Patienten
     recent_ids = db.execute(
         select(AuditEntry.patient_id, func.max(AuditEntry.at).label("last"))
-        .where(AuditEntry.user_id == user.id, AuditEntry.patient_id.is_not(None))
+        .where(AuditEntry.user_id == user.id, AuditEntry.patient_id.is_not(None), AuditEntry.action != "prefetch")
         .group_by(AuditEntry.patient_id)
         .order_by(func.max(AuditEntry.at).desc())
         .limit(8)

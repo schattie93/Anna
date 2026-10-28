@@ -244,12 +244,18 @@ function SeriesCard({ items, patientId, reload }: { items: Finding[]; patientId:
                   {f.notes && <span className="muted"> – {f.notes}</span>}
                 </td>
                 <td className="row-actions">
-                  <button className="btn small" onClick={() => setEditing(f)}>
-                    Korrigieren
-                  </button>
-                  <button className="btn small danger" onClick={() => setVoiding(f)}>
-                    Stornieren
-                  </button>
+                  {f.pending ? (
+                    <span className="badge warn">offline erfasst</span>
+                  ) : (
+                    <>
+                      <button className="btn small" onClick={() => setEditing(f)}>
+                        Korrigieren
+                      </button>
+                      <button className="btn small danger" onClick={() => setVoiding(f)}>
+                        Stornieren
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

@@ -51,8 +51,9 @@ def create_patient(data: PatientCreate, db: Session = Depends(get_db), user: Use
 
 
 @router.get("/{patient_id}", response_model=PatientOut)
-def read_patient(patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    audit.log(db, user, "view", "patient", patient.id, patient.id)
+def read_patient(patient: Patient = Depends(get_patient), cache: bool = False, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # cache=1: Abruf zur Vorbereitung der Offline-Nutzung am Tablet; wird als eigene Aktion protokolliert (nicht als "Ansehen")
+    audit.log(db, user, "prefetch" if cache else "view", "patient", patient.id, patient.id)
     db.commit()
     return patient
 

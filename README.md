@@ -23,12 +23,12 @@ Grundlage ist das Projektkonzept vom 28.10.2026. Alle sechs Phasen sind umgesetz
 
 **Rollen:** *Administrator* (alles, Verwaltung), *Therapeut/in* (alles außer Verwaltung), *Empfang* (Stammdaten, Termine, Rechnungen, **keine** medizinischen Daten).
 
-**Bedienung:** Die Oberfläche ist für Tablet und PC gebaut. Große Touchflächen, Schnellauswahl statt Tippen (Maßnahmen, Warnzeichen, Schmerzskala), Werte der letzten Behandlung übernehmen. Am PC: `/` öffnet die Patientensuche, `n` legt einen neuen Patienten an. Bei WLAN-Ausfall erscheint eine Warnung.
+**Bedienung:** Die Oberfläche ist für Tablet und PC gebaut. Große Touchflächen, Schnellauswahl statt Tippen (Maßnahmen, Warnzeichen, Schmerzskala), Werte der letzten Behandlung übernehmen. Am PC: `/` öffnet die Patientensuche, `n` legt einen neuen Patienten an. Bei WLAN-Ausfall arbeitet das Tablet im verschlüsselten Offline-Modus weiter und überträgt später automatisch.
 
 ### Ausdrücklich nicht enthalten
 
 - **Datenträgeraustausch mit den Krankenkassen (§ 302 SGB V):** Die Software prüft die Vollständigkeit der Verordnungen und exportiert CSV für die Abrechnungsstelle. Die eigentliche GKV-Abrechnung (Preislisten, Zuzahlungsberechnung, Übermittlung, IK-Verfahren) braucht eine eigene fachliche Spezifikation, wie im Konzept vorgesehen.
-- **Echter Offline-Modus für Tablets** (offene Entscheidung im Konzept, siehe `docs/BETRIEB.md`).
+- **Offline-Modus mit Grenzen:** Offline lassen sich nur neue Einträge erfassen (Behandlung, Messwerte, Körperatlas, Erstbefund, Anamnese, Unterschrift). Korrekturen, Stornos, Fotos und Abrechnung brauchen die Verbindung (siehe `docs/BETRIEB.md`, Abschnitt 10).
 - **Umsatzsteuer:** Rechnungen weisen Heilbehandlungen als umsatzsteuerfrei aus (Hinweistext einstellbar). Andere Konstellationen sind nicht abgebildet.
 
 ## Aufbau
@@ -105,8 +105,8 @@ Ausführlich in `docs/DATENSCHUTZ.md`. Kurz: Passwörter mit scrypt, `HttpOnly`/
 Diese Punkte kann die Software nicht selbst erledigen:
 
 1. **NAS bestätigen:** Modell (vorläufig ASUSTOR AS3302T), RAM, Docker-Unterstützung. Installation und ein Lasttest auf dem echten Gerät (`scripts/loadtest.py`).
-2. **Docker-Setup einmal komplett durchspielen:** Die Compose-Datei wurde in der Entwicklungsumgebung nur formal geprüft, die Container konnten dort nicht gestartet werden. Das gilt auch für `backup.sh`, `restore.sh` und `restore-test.sh`. Deren Kernschritte (Dump, Verschlüsselung, Wiederherstellung, Integritätsprüfung) wurden lokal gegen PostgreSQL geprüft.
+2. **Docker-Setup:** Nach Rückmeldung der Praxis läuft das System auf dem NAS. In der Entwicklungsumgebung ließen sich die Container nicht starten; `backup.sh`, `restore.sh` und `restore-test.sh` wurden nur in ihren Kernschritten (Dump, Verschlüsselung, Wiederherstellung, Integritätsprüfung) gegen PostgreSQL geprüft. Bitte **Backup und Wiederherstellungstest einmal auf dem NAS durchführen**.
 3. **Rechtliche Prüfung** (Verarbeitungsverzeichnis, Einwilligungstexte, Aufbewahrungsfristen, Rechnungsangaben) und **unabhängige Sicherheitsprüfung** der Installation.
 4. **Fachliche Spezifikation** für die GKV-Abrechnung und die Prüfregeln der Verordnungen. Die Fristen in `docs/BETRIEB.md` sind Voreinstellungen und müssen mit der aktuellen Heilmittel-Richtlinie abgeglichen werden.
-5. **Tablets und Stifte testen** (Handschrift-zu-Text, Druckempfindlichkeit, Handballen-Ablehnung) und **Offline-Verhalten entscheiden**.
+5. **Tablets und Stifte testen** (Handschrift-zu-Text, Druckempfindlichkeit, Handballen-Ablehnung) und den Offline-Modus am echten Gerät prüfen (Safari-Speicher, Passphrase, WLAN-Ausfall).
 6. Praxisprozesse festlegen: Administrator, Backup-Medium, Passphrase-Aufbewahrung, Wiederherstellungstest.

@@ -1,3 +1,7 @@
+import * as offline from "./offline/core";
+
+export { OfflineError } from "./offline/core";
+
 export type Role = "admin" | "therapist" | "reception";
 export type Sex = "female" | "male" | "diverse" | "unknown";
 export type InsuranceType = "gkv" | "private" | "self_pay" | "bg";
@@ -59,6 +63,8 @@ export interface PatientListItem {
 }
 
 export interface MedicalMeta {
+  pending?: boolean; // offline erfasst, noch nicht an den Server übertragen
+  pending_error?: string | null;
   id: number;
   patient_id: number;
   created_by: { id: number; full_name: string };
@@ -410,9 +416,17 @@ async function fail(res: Response): Promise<never> {
   throw new ApiError(res.status, message);
 }
 
-/** Multipart-Upload (Fotos, Dokumente, Zeichnungen, Audio). */
+/** Multipart-Upload (Fotos, Dokumente, Zeichnungen, Audio). Nur die Unterschrift lässt sich offline vormerken. */
 export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "X-PhysioFlow": "1" }, body: form });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "X-PhysioFlow": "1" }, body: form });
+  } catch {
+    offline.setReachable(false);
+    const file = form.get("file");
+    if (offline.isSignaturePath(path) && file instanceof Blob) return (await offline.signatureOffline(path, file)) as T;
+    throw new offline.OfflineError("Ohne Verbindung nicht möglich. Fotos, Dokumente und Zeichnungen lassen sich nur mit Verbindung hochladen.");
+  }
   if (res.status === 401) window.dispatchEvent(new Event("physioflow:unauthorized"));
   if (!res.ok) return fail(res);
   return res.json();
@@ -440,29 +454,41 @@ export async function openPdf(path: string, body: unknown): Promise<void> {
 }
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    method: options.method ?? "GET",
-    credentials: "same-origin",
-    headers: {
-      "X-PhysioFlow": "1",
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  const method = options.method ?? "GET";
+  if (method !== "GET" && offline.touchesPending(path)) {
+    throw new offline.OfflineError("Dieser Eintrag wurde noch nicht an den Server übertragen und lässt sich erst danach ändern.");
+  }
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        "X-PhysioFlow": "1",
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    // Server nicht erreichbar (WLAN weg, Zeitüberschreitung): aus dem Zwischenspeicher lesen bzw. Neuanlage vormerken
+    return offline.handleNetworkFailure<T>(path, method, options.body);
+  }
   if (res.status === 401 && path !== "/auth/login" && path !== "/auth/status") {
     window.dispatchEvent(new Event("physioflow:unauthorized"));
   }
-  if (!res.ok) {
-    let message = res.statusText;
-    try {
-      message = describe((await res.json()).detail);
-    } catch {
-      /* keine JSON-Antwort */
-    }
-    throw new ApiError(res.status, message);
+  if (!res.ok) return fail(res);
+  offline.setReachable(true);
+  if (res.status === 204) return undefined as T;
+  const data = (await res.json()) as T;
+  if (method === "GET") {
+    offline.onGet(path, data);
+    return offline.mergePending(path, data);
   }
-  return res.status === 204 ? (undefined as T) : res.json();
+  return data;
 }
+
+offline.registerApi(api);
 
 export interface AssistStatus {
   transcribe: boolean;

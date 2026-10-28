@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth, useUser } from "../auth";
+import * as core from "../offline/core";
+import { OfflineBar, useOffline } from "../offline/OfflineUI";
 
 export default function Layout() {
   const user = useUser();
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const online = useServerReachable();
+  useOfflineBackground();
 
   // Tastaturkürzel für die PC-Bedienung
   useEffect(() => {
@@ -47,11 +49,7 @@ export default function Layout() {
           </button>
         </nav>
       </header>
-      {!online && (
-        <div className="offline-banner" role="alert">
-          Keine Verbindung zum Praxisserver – Änderungen werden erst nach Wiederverbindung gespeichert. Bitte WLAN prüfen; offene Formulare bleiben auf dem Bildschirm erhalten.
-        </div>
-      )}
+      <OfflineBar />
       <main className="content">
         <Outlet />
       </main>
@@ -59,24 +57,31 @@ export default function Layout() {
   );
 }
 
-/** Prüft regelmäßig, ob der Praxisserver erreichbar ist (z. B. WLAN-Ausfall am Tablet). */
-function useServerReachable(): boolean {
-  const [ok, setOk] = useState(true);
+/** Hält Erreichbarkeit, Übertragung und Vorbereitung für die Offline-Nutzung im Hintergrund aktuell. */
+function useOfflineBackground() {
+  const s = useOffline();
   useEffect(() => {
-    let alive = true;
     const ping = () =>
-      fetch("/api/health", { cache: "no-store" }).then(
-        (r) => alive && setOk(r.ok),
-        () => alive && setOk(false),
+      fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(8000) }).then(
+        (r) => core.setReachable(r.ok),
+        () => core.setReachable(false),
       );
-    const timer = setInterval(ping, 15000);
-    window.addEventListener("online", ping);
-    window.addEventListener("offline", () => setOk(false));
+    const timer = setInterval(() => {
+      void ping();
+      core.syncSoon();
+    }, 15000);
+    const up = () => void ping();
+    const down = () => core.setReachable(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
     return () => {
-      alive = false;
       clearInterval(timer);
-      window.removeEventListener("online", ping);
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
     };
   }, []);
-  return ok;
+  // Akten der heutigen Patienten automatisch vorbereiten (höchstens alle 10 Minuten), solange entsperrt
+  useEffect(() => {
+    if (s.vault === "unlocked" && s.reachable && !s.preparing && (!s.lastPrepared || Date.now() - s.lastPrepared > 10 * 60_000)) void core.prepare();
+  }, [s.vault, s.reachable, s.preparing, s.lastPrepared]);
 }

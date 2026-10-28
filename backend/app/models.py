@@ -627,3 +627,21 @@ class CatalogItem(TimestampMixin, Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
     reviewed_by: Mapped[str | None] = mapped_column(String(128))
+
+
+class ClientOp(Base):
+    """Protokoll übertragener Offline-Einträge: macht die Übertragung wiederholbar (Idempotenz) und löst vorläufige
+    (negative) Kennungen von Tablets in echte auf."""
+
+    __tablename__ = "client_ops"
+    __table_args__ = (UniqueConstraint("user_id", "op_id", name="uq_client_op"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    op_id: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(32))
+    temp_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    real_id: Mapped[int | None] = mapped_column(Integer)
+    ok: Mapped[bool] = mapped_column(Boolean, default=True)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
