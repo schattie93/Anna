@@ -1,0 +1,141 @@
+import { useState, type FormEvent } from "react";
+import { api, type Role, type User } from "../api";
+import { useUser } from "../auth";
+import { ErrorBox, Select, TextField } from "../components/fields";
+import { useApi } from "../hooks";
+import { ROLE } from "../labels";
+
+export default function SettingsPage() {
+  const user = useUser();
+  return (
+    <div className="stack">
+      <h1>Einstellungen</h1>
+      <PasswordForm />
+      {user.role === "admin" && <UserAdmin currentUserId={user.id} />}
+    </div>
+  );
+}
+
+function PasswordForm() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMsg(null);
+    try {
+      await api("/auth/password", { method: "POST", body: { current_password: current, new_password: next } });
+      setCurrent("");
+      setNext("");
+      setMsg("Passwort geändert.");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <form className="card form-grid" onSubmit={submit}>
+      <h2 className="wide">Eigenes Passwort ändern</h2>
+      <TextField label="Aktuelles Passwort" type="password" value={current} onChange={(v) => setCurrent(v ?? "")} required />
+      <TextField label="Neues Passwort" type="password" value={next} onChange={(v) => setNext(v ?? "")} required hint="mindestens 10 Zeichen" />
+      <div className="wide">
+        <ErrorBox error={error} />
+        {msg && <p className="ok-text">{msg}</p>}
+        <button className="btn primary">Passwort ändern</button>
+      </div>
+    </form>
+  );
+}
+
+function UserAdmin({ currentUserId }: { currentUserId: number }) {
+  const { data: users, reload } = useApi<User[]>("/users");
+  const [form, setForm] = useState({ username: "", full_name: "", password: "", role: "therapist" as Role });
+  const [error, setError] = useState<string | null>(null);
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api("/users", { method: "POST", body: form });
+      setForm({ username: "", full_name: "", password: "", role: "therapist" });
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function update(id: number, body: Partial<User> & { password?: string }) {
+    setError(null);
+    try {
+      await api(`/users/${id}`, { method: "PATCH", body });
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  function resetPassword(u: User) {
+    const password = window.prompt(`Neues Passwort für ${u.full_name} (mind. 10 Zeichen):`);
+    if (password) update(u.id, { password });
+  }
+
+  return (
+    <section className="card stack">
+      <h2>Benutzerverwaltung</h2>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Benutzername</th>
+              <th>Rolle</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {users?.map((u) => (
+              <tr key={u.id}>
+                <td>{u.full_name}</td>
+                <td>{u.username}</td>
+                <td>{ROLE[u.role]}</td>
+                <td>{u.is_active ? "aktiv" : <span className="badge">deaktiviert</span>}</td>
+                <td className="row-actions">
+                  <button className="btn small" onClick={() => resetPassword(u)}>
+                    Passwort setzen
+                  </button>
+                  {u.id !== currentUserId && (
+                    <button className="btn small" onClick={() => update(u.id, { is_active: !u.is_active })}>
+                      {u.is_active ? "Deaktivieren" : "Aktivieren"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <form className="form-grid" onSubmit={create}>
+        <h3 className="wide">Neuen Benutzer anlegen</h3>
+        <TextField label="Vollständiger Name" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v ?? "" })} required />
+        <TextField label="Benutzername" value={form.username} onChange={(v) => setForm({ ...form, username: v ?? "" })} required />
+        <TextField
+          label="Startpasswort"
+          type="password"
+          value={form.password}
+          onChange={(v) => setForm({ ...form, password: v ?? "" })}
+          required
+          hint="mindestens 10 Zeichen"
+        />
+        <Select label="Rolle" value={form.role} options={ROLE as Record<Role, string>} onChange={(v) => setForm({ ...form, role: v })} />
+        <div className="wide">
+          <ErrorBox error={error} />
+          <button className="btn primary">Benutzer anlegen</button>
+        </div>
+      </form>
+    </section>
+  );
+}

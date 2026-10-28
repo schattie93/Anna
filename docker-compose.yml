@@ -1,0 +1,44 @@
+# PhysioFlow – Betrieb im lokalen Praxisnetz (z. B. ASUSTOR-NAS).
+# Keine Portfreigabe im Router einrichten! Zugriff nur aus dem lokalen Netz.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: physioflow
+      POSTGRES_USER: physioflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in .env setzen}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U physioflow -d physioflow"]
+      interval: 10s
+      retries: 5
+    # Speicherbedarf klein halten (NAS mit wenig RAM)
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PHYSIOFLOW_DATABASE_URL: postgresql+psycopg://physioflow:${POSTGRES_PASSWORD}@db:5432/physioflow
+      PHYSIOFLOW_COOKIE_SECURE: "true"
+
+  # HTTPS im lokalen Netz mit eigener Zertifizierungsstelle von Caddy ("tls internal").
+  # Das Root-Zertifikat (data/caddy/pki/authorities/local/root.crt) einmalig auf PC und Tablets installieren.
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      PHYSIOFLOW_HOST: ${PHYSIOFLOW_HOST:-physioflow.local}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data
