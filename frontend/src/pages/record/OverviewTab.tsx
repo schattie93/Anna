@@ -9,12 +9,14 @@ export default function OverviewTab({
   diagnoses,
   treatments,
   catalog,
+  medical,
 }: {
   patient: Patient;
   anamnesis: Anamnesis | undefined;
   diagnoses: Diagnosis[];
   treatments: Treatment[];
   catalog: Catalog;
+  medical: boolean;
 }) {
   const active = diagnoses.filter((d) => !d.voided && d.status === "active");
   const done = treatments.filter((t) => !t.voided);
@@ -45,6 +47,7 @@ export default function OverviewTab({
         </dl>
       </section>
 
+      {medical && (
       <section className="card">
         <h2>Aktuelle Situation</h2>
         {anamnesis ? (
@@ -78,7 +81,9 @@ export default function OverviewTab({
           </ul>
         )}
       </section>
+      )}
 
+      {medical && (
       <section className="card wide">
         <div className="page-head">
           <h2>Letzte Behandlungen ({done.length})</h2>
@@ -115,6 +120,7 @@ export default function OverviewTab({
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type Role = "admin" | "therapist";
+export type Role = "admin" | "therapist" | "reception";
 export type Sex = "female" | "male" | "diverse" | "unknown";
 export type InsuranceType = "gkv" | "private" | "self_pay" | "bg";
 export type Side = "left" | "right" | "both" | "none";
@@ -136,9 +136,90 @@ export interface Dashboard {
   recent_patients: PatientListItem[];
 }
 
+export type FindingCategory = "rom" | "strength" | "test" | "measure";
+
+export interface FindingPreset {
+  category: FindingCategory;
+  name: string;
+  unit: string | null;
+}
+
 export interface Catalog {
   red_flags: Record<string, string>;
   measures: string[];
+  finding_presets: FindingPreset[];
+  test_results: string[];
+}
+
+export interface FindingData {
+  recorded_on: string;
+  category: FindingCategory;
+  name: string;
+  side: Side;
+  value_num: number | null;
+  value_text: string | null;
+  unit: string | null;
+  notes: string | null;
+  treatment_id: number | null;
+}
+export type Finding = FindingData & MedicalMeta;
+
+export type BodyView = "front" | "back";
+export type MarkKind = "pain" | "tension" | "numbness" | "swelling" | "scar" | "other";
+
+export interface BodyMarkData {
+  recorded_on: string;
+  view: BodyView;
+  x: number;
+  y: number;
+  kind: MarkKind;
+  intensity: number | null;
+  note: string | null;
+  treatment_id: number | null;
+}
+export type BodyMark = BodyMarkData & MedicalMeta;
+
+export type AttachmentKind = "photo" | "document" | "drawing";
+export interface Attachment extends MedicalMeta {
+  treatment_id: number | null;
+  parent_id: number | null;
+  kind: AttachmentKind;
+  caption: string | null;
+  taken_on: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  has_thumb: boolean;
+  ocr_text: string | null;
+}
+
+export type GoalStatus = "open" | "achieved" | "dropped";
+export interface GoalData {
+  description: string;
+  target_date: string | null;
+  status: GoalStatus;
+  achieved_on: string | null;
+  metric_name: string | null;
+  metric_side: Side;
+  baseline_value: number | null;
+  target_value: number | null;
+}
+export type Goal = GoalData & MedicalMeta;
+
+export interface PracticeSettings {
+  practice_name: string | null;
+  practice_owner: string | null;
+  practice_address: string | null;
+  practice_phone: string | null;
+  practice_email: string | null;
+  practice_tax_number: string | null;
+  practice_ik: string | null;
+  practice_iban: string | null;
+  practice_bic: string | null;
+  practice_bank: string | null;
+  invoice_vat_note: string | null;
+  invoice_payment_days: string | null;
+  invoice_footer: string | null;
 }
 
 export class ApiError extends Error {
@@ -161,6 +242,45 @@ function describe(detail: unknown): string {
       .join("; ");
   }
   return "Unbekannter Fehler";
+}
+
+async function fail(res: Response): Promise<never> {
+  let message = res.statusText;
+  try {
+    message = describe((await res.json()).detail);
+  } catch {
+    /* keine JSON-Antwort */
+  }
+  throw new ApiError(res.status, message);
+}
+
+/** Multipart-Upload (Fotos, Dokumente, Zeichnungen, Audio). */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "X-PhysioFlow": "1" }, body: form });
+  if (res.status === 401) window.dispatchEvent(new Event("physioflow:unauthorized"));
+  if (!res.ok) return fail(res);
+  return res.json();
+}
+
+/** Lädt eine Binärdatei (z. B. PDF) per POST und öffnet sie in einem neuen Tab. */
+export async function openPdf(path: string, body: unknown): Promise<void> {
+  const win = window.open("", "_blank");
+  try {
+    const res = await fetch(`/api${path}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-PhysioFlow": "1", "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return await fail(res);
+    const url = URL.createObjectURL(await res.blob());
+    if (win) win.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
 }
 
 export async function api<T>(path: string, options: { method?: string; body?: unknown } = {}): Promise<T> {

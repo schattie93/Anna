@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..db import get_db
-from ..deps import get_current_user, get_patient
+from ..deps import get_current_user, get_patient, require_medical
 from ..models import AuditEntry, Patient, User
 from ..schemas import AuditOut, PatientCreate, PatientListItem, PatientOut, PatientUpdate
 
@@ -71,7 +71,7 @@ def update_patient(
     return patient
 
 
-@router.get("/{patient_id}/history", response_model=list[AuditOut])
+@router.get("/{patient_id}/history", response_model=list[AuditOut], dependencies=[Depends(require_medical)])
 def patient_history(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
     return db.scalars(
         select(AuditEntry)

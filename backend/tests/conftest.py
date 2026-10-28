@@ -1,6 +1,9 @@
 import os
 
+import tempfile
+
 os.environ.setdefault("PHYSIOFLOW_DATABASE_URL", "sqlite://")
+os.environ.setdefault("PHYSIOFLOW_DATA_DIR", tempfile.mkdtemp(prefix="physioflow-test-"))
 
 import pytest
 from fastapi.testclient import TestClient
@@ -52,3 +55,8 @@ def patient(client, admin):
     )
     assert r.status_code == 201, r.text
     return r.json()
+
+
+@pytest.fixture
+def base(patient):
+    return f"/api/patients/{patient['id']}"

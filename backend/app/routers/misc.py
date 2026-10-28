@@ -4,30 +4,39 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..catalog import MEASURES, RED_FLAGS
+from ..catalog import FINDING_PRESETS, MEASURES, RED_FLAGS, TEST_RESULTS
 from ..db import get_db
 from ..deps import get_current_user
-from ..models import AuditEntry, Patient, Treatment, TreatmentStatus, User
-from ..schemas import Catalog, Dashboard
+from ..models import AuditEntry, Patient, Role, Treatment, TreatmentStatus, User
+from ..schemas import Catalog, Dashboard, FindingPreset
 
 router = APIRouter(prefix="/api", tags=["misc"])
 
 
 @router.get("/catalog", response_model=Catalog)
 def catalog(_: User = Depends(get_current_user)):
-    return Catalog(red_flags=RED_FLAGS, measures=MEASURES)
+    return Catalog(
+        red_flags=RED_FLAGS,
+        measures=MEASURES,
+        finding_presets=[FindingPreset(category=c, name=n, unit=u) for c, n, u in FINDING_PRESETS],
+        test_results=TEST_RESULTS,
+    )
 
 
 @router.get("/dashboard", response_model=Dashboard)
 def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     active = Treatment.voided.is_(False)
-    open_treatments = db.scalars(
-        select(Treatment)
-        .options(selectinload(Treatment.patient))
-        .where(active, Treatment.status == TreatmentStatus.draft)
-        .order_by(Treatment.treated_on)
-        .limit(50)
-    ).all()
+    open_treatments: list[Treatment] = []
+    if user.role != Role.reception:
+        open_treatments = list(
+            db.scalars(
+                select(Treatment)
+                .options(selectinload(Treatment.patient))
+                .where(active, Treatment.status == TreatmentStatus.draft)
+                .order_by(Treatment.treated_on)
+                .limit(50)
+            )
+        )
 
     # Zuletzt vom angemeldeten Benutzer geöffnete oder bearbeitete Patienten
     recent_ids = db.execute(

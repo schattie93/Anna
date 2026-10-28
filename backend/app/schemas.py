@@ -1,10 +1,22 @@
 from datetime import date, datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator, model_validator
 
-from .catalog import RED_FLAGS
-from .models import DiagnosisStatus, InsuranceType, Role, Sex, Side, TreatmentStatus
+from .catalog import RED_FLAGS, TEST_RESULTS
+from .models import (
+    AttachmentKind,
+    BodyView,
+    DiagnosisStatus,
+    FindingCategory,
+    GoalStatus,
+    InsuranceType,
+    MarkKind,
+    Role,
+    Sex,
+    Side,
+    TreatmentStatus,
+)
 
 Pain = Annotated[int, Field(ge=0, le=10)]
 NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -281,6 +293,151 @@ class Dashboard(BaseModel):
     recent_patients: list[PatientListItem]
 
 
+class FindingPreset(BaseModel):
+    category: FindingCategory
+    name: str
+    unit: str | None
+
+
 class Catalog(BaseModel):
     red_flags: dict[str, str]
     measures: list[str]
+    finding_presets: list[FindingPreset]
+    test_results: list[str]
+
+
+# --- Befunde -----------------------------------------------------------------
+
+
+class FindingBase(BaseModel):
+    recorded_on: date
+    category: FindingCategory
+    name: NonEmpty
+    side: Side = Side.none
+    value_num: float | None = None
+    value_text: str | None = None
+    unit: str | None = None
+    notes: str | None = None
+    treatment_id: int | None = None
+
+    @model_validator(mode="after")
+    def value_matches_category(self):
+        if self.category == FindingCategory.test:
+            if self.value_text not in TEST_RESULTS:
+                raise ValueError("Testergebnis muss positiv, negativ oder fraglich sein")
+            self.value_num = None
+        else:
+            if self.value_num is None:
+                raise ValueError("Messwert fehlt")
+            self.value_text = None
+        return self
+
+
+class FindingIn(FindingBase):
+    pass
+
+
+class FindingUpdate(FindingBase):
+    correction_reason: NonEmpty
+
+
+class FindingOut(MedicalOut, FindingBase):
+    pass
+
+
+# --- Körperatlas ---------------------------------------------------------------
+
+
+class BodyMarkBase(BaseModel):
+    recorded_on: date
+    view: BodyView
+    x: Annotated[float, Field(ge=0, le=1)]
+    y: Annotated[float, Field(ge=0, le=1)]
+    kind: MarkKind = MarkKind.pain
+    intensity: Pain | None = None
+    note: str | None = None
+    treatment_id: int | None = None
+
+
+class BodyMarkIn(BodyMarkBase):
+    pass
+
+
+class BodyMarkUpdate(BodyMarkBase):
+    pass
+
+
+class BodyMarkOut(MedicalOut, BodyMarkBase):
+    pass
+
+
+# --- Dateien -------------------------------------------------------------------
+
+
+class AttachmentOut(MedicalOut):
+    treatment_id: int | None
+    parent_id: int | None
+    kind: AttachmentKind
+    caption: str | None
+    taken_on: date
+    filename: str
+    content_type: str
+    size: int
+    has_thumb: bool = False
+    ocr_text: str | None
+
+
+class AttachmentUpdate(BaseModel):
+    caption: str | None = None
+    taken_on: date | None = None
+    treatment_id: int | None = None
+    ocr_text: str | None = None
+
+
+# --- Therapieziele ---------------------------------------------------------------
+
+
+class GoalBase(BaseModel):
+    description: NonEmpty
+    target_date: date | None = None
+    status: GoalStatus = GoalStatus.open
+    achieved_on: date | None = None
+    metric_name: str | None = None
+    metric_side: Side = Side.none
+    baseline_value: float | None = None
+    target_value: float | None = None
+
+
+class GoalIn(GoalBase):
+    pass
+
+
+class GoalUpdate(GoalBase):
+    pass
+
+
+class GoalOut(MedicalOut, GoalBase):
+    pass
+
+
+class ReportIn(BaseModel):
+    summary: str | None = None
+    recipient: str | None = None
+    from_date: date | None = None
+    to_date: date | None = None
+
+
+class PracticeSettings(BaseModel):
+    practice_name: str | None = None
+    practice_owner: str | None = None
+    practice_address: str | None = None
+    practice_phone: str | None = None
+    practice_email: str | None = None
+    practice_tax_number: str | None = None
+    practice_ik: str | None = None
+    practice_iban: str | None = None
+    practice_bic: str | None = None
+    practice_bank: str | None = None
+    invoice_vat_note: str | None = None
+    invoice_payment_days: str | None = None
+    invoice_footer: str | None = None

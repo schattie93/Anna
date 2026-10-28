@@ -677,3 +677,235 @@ ins {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
+
+/* --- Phase 2: Diagramme, Körperatlas, Dateien ---------------------------- */
+
+:root {
+  --atlas-fill: #e8eeee;
+  --atlas-line: #98a6a8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --atlas-fill: #2a3638;
+    --atlas-line: #6f8083;
+  }
+}
+
+.chart {
+  margin: 0.75rem 0;
+}
+.chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.chart .tick {
+  fill: var(--muted);
+  font-size: 11px;
+}
+.chart .target {
+  stroke: var(--ok);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.legend i,
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.progress {
+  position: relative;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.progress > div {
+  height: 100%;
+  background: var(--primary);
+}
+.progress > span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  mix-blend-mode: difference;
+}
+
+.atlas-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+  justify-items: center;
+}
+.atlas-pair figure {
+  margin: 0;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+.atlas {
+  width: 100%;
+  height: auto;
+  touch-action: manipulation;
+  user-select: none;
+}
+.atlas.placing {
+  cursor: crosshair;
+}
+.atlas-side {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.mark {
+  cursor: pointer;
+}
+.mark-label {
+  fill: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 0.5);
+  stroke-width: 2px;
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0.5rem 0;
+  font: inherit;
+  color: var(--primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+.tile {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.tile-img {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  cursor: pointer;
+}
+.tile-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pdf-icon {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 800;
+}
+.tile figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.small-check {
+  min-height: 36px;
+  font-size: 0.85rem;
+}
+.viewer {
+  max-width: 100%;
+  max-height: 65vh;
+  display: block;
+  margin: 0 auto 1rem;
+  border-radius: 8px;
+}
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.compare figure {
+  margin: 0;
+}
+.compare img {
+  width: 100%;
+  border-radius: 8px;
+}
+.compare figcaption {
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.wide-dialog {
+  width: min(960px, calc(100vw - 1.5rem));
+  max-height: calc(100vh - 2rem);
+}
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.swatch.on {
+  box-shadow: 0 0 0 3px var(--primary);
+}
+.canvas {
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  touch-action: none;
+  cursor: crosshair;
+}
+.correction {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border);
+}

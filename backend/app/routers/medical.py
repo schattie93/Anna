@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..db import get_db
-from ..deps import get_current_user, get_patient
+from ..deps import get_current_user, get_patient, require_medical
 from ..models import Anamnesis, Diagnosis, Patient, Treatment, TreatmentStatus, User
 from ..schemas import (
     AnamnesisIn,
@@ -27,7 +27,7 @@ from ..schemas import (
     VoidIn,
 )
 
-router = APIRouter(prefix="/api/patients/{patient_id}", tags=["medical"])
+router = APIRouter(prefix="/api/patients/{patient_id}", tags=["medical"], dependencies=[Depends(require_medical)])
 
 
 def _get_entry(db: Session, model, entry_id: int, patient: Patient):

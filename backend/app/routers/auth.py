@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .. import audit
 from ..config import get_settings
 from ..db import get_db
-from ..deps import SESSION_COOKIE, get_current_user
+from ..deps import SESSION_COOKIE, _aware, get_current_user
 from ..models import Role, User, UserSession
 from ..schemas import AuthStatus, LoginIn, PasswordChange, SetupIn, UserOut
 from ..security import hash_password, hash_token, new_session_token, verify_password
@@ -58,11 +58,22 @@ def initial_setup(data: SetupIn, response: Response, db: Session = Depends(get_d
 
 @router.post("/login", response_model=UserOut)
 def login(data: LoginIn, response: Response, db: Session = Depends(get_db)):
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
     user = db.scalar(select(User).where(User.username == data.username))
+    if user and user.locked_until and _aware(user.locked_until) > now:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Konto vorübergehend gesperrt – bitte später erneut versuchen")
     if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+        if user:
+            user.failed_attempts += 1
+            if user.failed_attempts >= settings.max_failed_logins:
+                user.locked_until = now + timedelta(minutes=settings.lockout_minutes)
+                user.failed_attempts = 0
         audit.log(db, None, "login_failed", "user", user.id if user else None, changes={"username": data.username})
         db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Benutzername oder Passwort falsch")
+    user.failed_attempts = 0
+    user.locked_until = None
     audit.log(db, user, "login", "user", user.id)
     _start_session(db, user, response)
     db.commit()

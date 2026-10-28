@@ -41,6 +41,9 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), a
     if data.password:
         user.password_hash = hash_password(data.password)
         diff["password"] = {"old": "***", "new": "***"}
+    if data.password or data.is_active:
+        user.failed_attempts = 0
+        user.locked_until = None
     if data.password or data.is_active is False:
         db.execute(delete(UserSession).where(UserSession.user_id == user.id))
     if diff:

@@ -26,6 +26,13 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_medical(user: User = Depends(get_current_user)) -> User:
+    """Zugriff auf medizinische Inhalte (Anamnese, Befunde, Behandlungen, Dateien …)."""
+    if user.role == Role.reception:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Keine Berechtigung für medizinische Daten")
+    return user
+
+
 def get_patient(patient_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)) -> Patient:
     patient = db.get(Patient, patient_id)
     if not patient:

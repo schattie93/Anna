@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
-from .routers import auth, medical, misc, patients, users
+from .routers import auth, documentation, medical, misc, patients, reports, settings, users
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSRF_HEADER = "x-physioflow"
@@ -28,7 +28,7 @@ async def protect(request: Request, call_next):
     return response
 
 
-for module in (auth, users, patients, medical, misc):
+for module in (auth, users, settings, patients, medical, documentation, reports, misc):
     app.include_router(module.router)
 
 
