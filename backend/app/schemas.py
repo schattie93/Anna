@@ -49,6 +49,7 @@ class UserOut(ORM):
     full_name: str
     role: Role
     is_active: bool
+    locked_until: datetime | None = None  # gesperrt nach zu vielen Fehlversuchen (nur relevant, solange in der Zukunft)
 
 
 class UserCreate(SetupIn):
@@ -59,6 +60,7 @@ class UserUpdate(BaseModel):
     full_name: NonEmpty | None = None
     role: Role | None = None
     is_active: bool | None = None
+    unlock: bool = False  # Sperre nach Fehlversuchen aufheben
     password: Annotated[str, Field(min_length=10)] | None = None
 
 

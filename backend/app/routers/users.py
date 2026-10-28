@@ -42,12 +42,14 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), a
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Benutzer nicht gefunden")
     if user.id == admin.id and (data.is_active is False or (data.role and data.role != admin.role)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Eigenes Konto kann nicht deaktiviert oder herabgestuft werden")
-    fields = data.model_dump(exclude_unset=True, exclude={"password"})
+    fields = data.model_dump(exclude_unset=True, exclude={"password", "unlock"})
     diff = audit.apply_changes(user, fields)
     if data.password:
         user.password_hash = hash_password(data.password)
         diff["password"] = {"old": "***", "new": "***"}
-    if data.password or data.is_active:
+    if data.password or data.is_active or data.unlock:
+        if user.locked_until or user.failed_attempts:
+            diff["locked"] = {"old": True, "new": False}
         user.failed_attempts = 0
         user.locked_until = None
     if data.password or data.is_active is False:

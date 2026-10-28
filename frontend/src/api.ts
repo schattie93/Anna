@@ -13,6 +13,7 @@ export interface User {
   full_name: string;
   role: Role;
   is_active: boolean;
+  locked_until?: string | null;
 }
 
 export interface AuthStatus {

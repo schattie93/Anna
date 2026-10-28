@@ -122,7 +122,7 @@ Berichtsentwürfe der KI enthalten **keine** Namen, Adressen oder Versichertennu
 
 - Der Administrator kann Passwörter zurücksetzen und Konten deaktivieren (Einstellungen > Benutzerverwaltung). Deaktivieren beendet alle Sitzungen des Kontos.
 - Passwort des Administrators vergessen: `docker compose exec app python -m app.cli reset-password <benutzername>`
-- Nach 5 falschen Anmeldeversuchen wird ein Konto 15 Minuten gesperrt. Nach 60 Minuten Inaktivität erfolgt die automatische Abmeldung (`PHYSIOFLOW_IDLE_MINUTES`).
+- Nach 5 falschen Anmeldeversuchen wird ein Konto 15 Minuten gesperrt. Ein anderer Administrator hebt die Sperre sofort auf (Einstellungen → Benutzerverwaltung → **Entsperren**). Ist niemand sonst Administrator: `docker compose exec app python -m app.cli unlock <benutzername>` (in Portainer: Konsole des Containers `app`). `reset-password` hebt die Sperre ebenfalls auf. Nach 60 Minuten Inaktivität erfolgt die automatische Abmeldung (`PHYSIOFLOW_IDLE_MINUTES`).
 - Tablet verloren: unter Einstellungen **Auf allen Geräten abmelden**.
 
 ## 8. Konfiguration (Umgebungsvariablen)

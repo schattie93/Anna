@@ -107,8 +107,20 @@ function UserAdmin({ currentUserId }: { currentUserId: number }) {
                 <td>{u.full_name}</td>
                 <td>{u.username}</td>
                 <td>{ROLE[u.role]}</td>
-                <td>{u.is_active ? "aktiv" : <span className="badge">deaktiviert</span>}</td>
+                <td>
+                  {u.is_active ? "aktiv" : <span className="badge">deaktiviert</span>}
+                  {u.locked_until && new Date(u.locked_until) > new Date() && (
+                    <span className="badge danger" title="Gesperrt nach zu vielen Fehlversuchen">
+                      gesperrt bis {new Date(u.locked_until).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </td>
                 <td className="row-actions">
+                  {u.locked_until && new Date(u.locked_until) > new Date() && (
+                    <button className="btn small primary" onClick={() => update(u.id, { unlock: true } as Partial<User>)}>
+                      Entsperren
+                    </button>
+                  )}
                   <button className="btn small" onClick={() => resetPassword(u)}>
                     Passwort setzen
                   </button>

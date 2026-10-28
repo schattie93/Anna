@@ -1,7 +1,8 @@
 """Verwaltungsbefehle: python -m app.cli <befehl>
 
   seed-demo       legt fiktive Beispieldaten an (nur für Entwicklung/Demo!)
-  reset-password  setzt das Passwort eines Benutzers neu
+  reset-password  setzt das Passwort eines Benutzers neu (hebt auch eine Sperre auf)
+  unlock          hebt die Sperre nach Fehlversuchen für einen Benutzer auf
   check-integrity prüft Datenbankstand, Dateien (Prüfsummen) und Rechnungsnummern; Exitcode 1 bei Problemen
   backup-done     vermerkt ein erfolgreiches Backup (wird von scripts/backup.sh aufgerufen)
   restore-test-done  vermerkt einen erfolgreichen Wiederherstellungstest
@@ -80,8 +81,19 @@ def reset_password(username: str) -> None:
             sys.exit("Passwort zu kurz oder stimmt nicht überein")
         user.password_hash = hash_password(pw)
         user.is_active = True
+        user.failed_attempts, user.locked_until = 0, None
         db.commit()
     print("Passwort gesetzt.")
+
+
+def unlock(username: str) -> None:
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.username == username))
+        if not user:
+            sys.exit(f"Benutzer '{username}' nicht gefunden")
+        user.failed_attempts, user.locked_until = 0, None
+        db.commit()
+    print(f"Konto '{username}' ist freigegeben.")
 
 
 def check_integrity() -> None:
@@ -115,6 +127,8 @@ def main() -> None:
     sub.add_parser("seed-demo")
     rp = sub.add_parser("reset-password")
     rp.add_argument("username")
+    ul = sub.add_parser("unlock")
+    ul.add_argument("username")
     sub.add_parser("check-integrity")
     bd = sub.add_parser("backup-done")
     bd.add_argument("filename")
@@ -122,6 +136,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.cmd == "seed-demo":
         seed_demo()
+    elif args.cmd == "unlock":
+        unlock(args.username)
     elif args.cmd == "check-integrity":
         check_integrity()
     elif args.cmd == "backup-done":
