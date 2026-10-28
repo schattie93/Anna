@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     # Geschützter lokaler Speicher für Bilder, PDFs und Zeichnungen (liegt NICHT im Web-Verzeichnis).
     data_dir: Path = Path("./data")
     max_upload_mb: int = 25
+    idle_minutes: int = 60  # automatische Abmeldung nach Inaktivität
+    retention_years: int = 10  # Aufbewahrungsfrist Patientenakte/Rechnungen (bitte rechtlich prüfen)
     max_failed_logins: int = 5
     lockout_minutes: int = 15
     # Fristen für Heilmittelverordnungen (Prüfhinweise). Bitte mit der aktuellen Heilmittel-Richtlinie abgleichen.

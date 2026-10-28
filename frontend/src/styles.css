@@ -1288,3 +1288,37 @@ td input,
 td select {
   min-height: 40px;
 }
+
+/* --- Phase 6: Verwaltung --------------------------------------------------- */
+
+.offline-banner {
+  position: sticky;
+  top: 64px;
+  z-index: 9;
+  padding: 0.7rem 1rem;
+  background: var(--danger);
+  color: #fff;
+  text-align: center;
+  font-weight: 600;
+}
+a.ai-notice {
+  text-decoration: none;
+}
+code {
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 0.9em;
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-bottom: 0;
+  }
+  .topbar nav {
+    width: 100%;
+    padding-bottom: 0.35rem;
+  }
+}

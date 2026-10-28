@@ -95,6 +95,11 @@ export default function PatientRecordPage() {
                 Bericht (PDF)
               </button>
             )}
+            {medical && (
+              <a className="btn" href={`/api/patients/${p.id}/export.zip`} title="Vollständige Akte mit Dateien (Auskunft/Übertragbarkeit)">
+                Akte exportieren
+              </a>
+            )}
             <Link to={`/patienten/${p.id}/bearbeiten`} className="btn">
               Stammdaten bearbeiten
             </Link>

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Layout from "./components/Layout";
+import AdminPage from "./pages/AdminPage";
 import BillingPage from "./pages/BillingPage";
 import CalendarPage from "./pages/CalendarPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="patienten/:id/:tab?" element={<PatientRecordPage />} />
         <Route path="abrechnung/:tab?" element={<BillingPage />} />
         <Route path="auswertung" element={<StatsPage />} />
+        <Route path="verwaltung/:tab?" element={<AdminPage />} />
         <Route path="einstellungen" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

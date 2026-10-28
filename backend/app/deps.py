@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import get_settings
 from .db import get_db
 from .models import Patient, Role, User, UserSession
 from .security import hash_token
@@ -14,9 +15,18 @@ SESSION_COOKIE = "physioflow_session"
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     token = request.cookies.get(SESSION_COOKIE)
     if token:
+        now = datetime.now(timezone.utc)
         session = db.scalar(select(UserSession).where(UserSession.token_hash == hash_token(token)))
-        if session and _aware(session.expires_at) > datetime.now(timezone.utc) and session.user.is_active:
-            return session.user
+        if session and _aware(session.expires_at) > now and session.user.is_active:
+            last = _aware(session.last_seen or session.created_at)
+            if now - last > timedelta(minutes=get_settings().idle_minutes):
+                db.delete(session)  # wegen Inaktivität abgelaufen
+                db.commit()
+            else:
+                if now - last > timedelta(seconds=60):  # Aktivität höchstens einmal pro Minute festhalten
+                    session.last_seen = now
+                    db.commit()
+                return session.user
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Nicht angemeldet")
 
 

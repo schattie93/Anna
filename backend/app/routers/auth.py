@@ -20,7 +20,7 @@ def _start_session(db: Session, user: User, response: Response) -> None:
     token = new_session_token()
     now = datetime.now(timezone.utc)
     db.execute(delete(UserSession).where(UserSession.expires_at < now))
-    db.add(UserSession(token_hash=hash_token(token), user_id=user.id, expires_at=now + timedelta(hours=settings.session_hours)))
+    db.add(UserSession(token_hash=hash_token(token), user_id=user.id, last_seen=now, expires_at=now + timedelta(hours=settings.session_hours)))
     response.set_cookie(
         SESSION_COOKIE,
         token,
@@ -96,3 +96,12 @@ def change_password(data: PasswordChange, user: User = Depends(get_current_user)
     user.password_hash = hash_password(data.new_password)
     audit.log(db, user, "password_change", "user", user.id)
     db.commit()
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+def logout_all(response: Response, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Beendet alle Sitzungen des Benutzers auf allen Geräten (z. B. wenn ein Tablet verloren ging)."""
+    db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+    audit.log(db, user, "logout_all", "user", user.id)
+    db.commit()
+    response.delete_cookie(SESSION_COOKIE, path="/")

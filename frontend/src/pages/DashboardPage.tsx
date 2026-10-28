@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { api, type Dashboard } from "../api";
 import { useUser } from "../auth";
+import { ageDays } from "./AdminPage";
 import { ErrorBox } from "../components/fields";
 import PatientSearch from "../components/PatientSearch";
 import { useApi } from "../hooks";
@@ -8,10 +9,21 @@ import { APPT_STATUS, formatDate, formatTime } from "../labels";
 
 export default function DashboardPage() {
   const { data, error, reload } = useApi<Dashboard>("/dashboard");
-  const medical = useUser().role !== "reception";
+  const user = useUser();
+  const medical = user.role !== "reception";
+  const ops = useApi<{ last_backup_at: string | null; last_restore_test_at: string | null }>(user.role === "admin" ? "/admin/ops" : null);
+  const backupAge = ageDays(ops.data?.last_backup_at ?? null);
+  const testAge = ageDays(ops.data?.last_restore_test_at ?? null);
 
   return (
     <div className="stack">
+      {ops.data && (backupAge === null || backupAge > 2 || testAge === null || testAge > 100) && (
+        <Link to="/verwaltung" className="ai-notice block">
+          ⚠ Datensicherung:{" "}
+          {backupAge === null ? "Es wurde noch kein Backup vermerkt." : backupAge > 2 ? `Das letzte Backup ist ${backupAge} Tage alt.` : ""}{" "}
+          {testAge === null || testAge > 100 ? "Ein Wiederherstellungstest steht aus." : ""}
+        </Link>
+      )}
       <PatientSearch autoFocus />
       <ErrorBox error={error} />
       {data && (

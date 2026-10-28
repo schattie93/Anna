@@ -2,6 +2,9 @@
 
   seed-demo       legt fiktive Beispieldaten an (nur für Entwicklung/Demo!)
   reset-password  setzt das Passwort eines Benutzers neu
+  check-integrity prüft Datenbankstand, Dateien (Prüfsummen) und Rechnungsnummern; Exitcode 1 bei Problemen
+  backup-done     vermerkt ein erfolgreiches Backup (wird von scripts/backup.sh aufgerufen)
+  restore-test-done  vermerkt einen erfolgreichen Wiederherstellungstest
 """
 
 import argparse
@@ -81,15 +84,54 @@ def reset_password(username: str) -> None:
     print("Passwort gesetzt.")
 
 
+def check_integrity() -> None:
+    from . import ops
+
+    with SessionLocal() as db:
+        result = ops.check_integrity(db)
+    print(f"Schema: {result['schema']['current']} (erwartet {result['schema']['head']})")
+    print(f"Datensätze: {result['counts']}; Dateien geprüft: {result['files_hash_checked']}")
+    for problem in result["problems"]:
+        print("PROBLEM:", problem)
+    print("OK" if result["ok"] else "FEHLER")
+    sys.exit(0 if result["ok"] else 1)
+
+
+def mark(key: str, value: str) -> None:
+    from datetime import datetime, timezone
+
+    from . import ops
+
+    with SessionLocal() as db:
+        ops.set_ops(db, key, value)
+        if key == "last_backup_file":
+            ops.set_ops(db, "last_backup_at", datetime.now(timezone.utc).isoformat())
+        db.commit()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("seed-demo")
     rp = sub.add_parser("reset-password")
     rp.add_argument("username")
+    sub.add_parser("check-integrity")
+    bd = sub.add_parser("backup-done")
+    bd.add_argument("filename")
+    sub.add_parser("restore-test-done")
     args = parser.parse_args()
     if args.cmd == "seed-demo":
         seed_demo()
+    elif args.cmd == "check-integrity":
+        check_integrity()
+    elif args.cmd == "backup-done":
+        mark("last_backup_file", args.filename)
+        print("Backup vermerkt.")
+    elif args.cmd == "restore-test-done":
+        from datetime import datetime, timezone
+
+        mark("last_restore_test_at", datetime.now(timezone.utc).isoformat())
+        print("Wiederherstellungstest vermerkt.")
     else:
         reset_password(args.username)
 

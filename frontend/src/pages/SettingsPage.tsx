@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { api, type PracticeSettings, type Role, type User } from "../api";
-import { useUser } from "../auth";
+import { useAuth, useUser } from "../auth";
 import { ErrorBox, Select, TextField } from "../components/fields";
 import { useApi } from "../hooks";
 import { ROLE } from "../labels";
@@ -11,6 +11,7 @@ export default function SettingsPage() {
     <div className="stack">
       <h1>Einstellungen</h1>
       <PasswordForm />
+      <SessionsCard />
       {user.role === "admin" && <PracticeForm />}
       {user.role === "admin" && <UserAdmin currentUserId={user.id} />}
     </div>
@@ -191,5 +192,29 @@ function PracticeForm() {
         <button className="btn primary">Speichern</button>
       </div>
     </form>
+  );
+}
+
+function SessionsCard() {
+  const { setUser } = useAuth();
+  const [busy, setBusy] = useState(false);
+  return (
+    <section className="card stack">
+      <h2>Sitzungen</h2>
+      <p className="muted">Meldet Sie auf allen Geräten ab, z. B. wenn ein Tablet verloren ging oder unbeaufsichtigt angemeldet blieb.</p>
+      <div className="actions">
+        <button
+          className="btn danger"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await api("/auth/logout-all", { method: "POST" });
+            setUser(null);
+          }}
+        >
+          Auf allen Geräten abmelden
+        </button>
+      </div>
+    </section>
   );
 }
