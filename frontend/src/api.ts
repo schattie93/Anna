@@ -422,3 +422,111 @@ export interface SoapSuggestion {
   plan: string | null;
   notice: string;
 }
+
+export type InvoiceStatus = "draft" | "issued" | "paid" | "cancelled";
+export type PaymentMethod = "transfer" | "cash" | "card";
+
+export interface Service {
+  id: number;
+  code: string | null;
+  name: string;
+  price_cents: number;
+  active: boolean;
+}
+
+export interface InvoiceItem {
+  id?: number;
+  treatment_id: number | null;
+  service_date: string;
+  description: string;
+  quantity: number;
+  unit_price_cents: number;
+  total_cents?: number;
+}
+
+export interface InvoicePayment {
+  id: number;
+  paid_on: string;
+  amount_cents: number;
+  method: PaymentMethod;
+  note: string | null;
+  voided: boolean;
+  void_reason: string | null;
+  created_by: { id: number; full_name: string };
+}
+
+export interface InvoiceListItem {
+  id: number;
+  number: string | null;
+  status: InvoiceStatus;
+  patient: PatientListItem;
+  issue_date: string | null;
+  due_date: string | null;
+  total_cents: number;
+  paid_cents: number;
+  cancels_id: number | null;
+  overdue: boolean;
+}
+
+export interface Invoice extends InvoiceListItem {
+  recipient_name: string;
+  recipient_address: string | null;
+  note: string | null;
+  vat_note: string | null;
+  items: Required<InvoiceItem>[];
+  payments: InvoicePayment[];
+  created_by: { id: number; full_name: string };
+}
+
+export interface BillableTreatment {
+  treatment_id: number;
+  treated_on: string;
+  duration_minutes: number | null;
+  measures: string[];
+  prescription_label: string | null;
+}
+
+export interface BillingSummary {
+  year: number;
+  revenue_by_month_cents: number[];
+  revenue_year_cents: number;
+  open_cents: number;
+  overdue_count: number;
+  overdue_cents: number;
+  drafts: number;
+}
+
+export interface GkvRow {
+  prescription_id: number;
+  patient: PatientListItem;
+  insurance_name: string | null;
+  insurance_number: string | null;
+  issued_on: string;
+  physician: string | null;
+  icd10_code: string | null;
+  indication_key: string | null;
+  measure: string;
+  total_units: number;
+  units_done: number;
+  treatment_dates: string[];
+  problems: string[];
+  ready: boolean;
+}
+
+export interface Stats {
+  year: number;
+  treatments_by_month: number[];
+  patients_by_month: number[];
+  treatments_year: number;
+  treatment_minutes_year: number;
+  measures: [string, number][];
+  appointments: { done: number; planned: number; cancelled: number; no_show: number; no_show_rate: number | null; cancel_rate: number | null };
+  documentation: {
+    active_patients: number;
+    draft_treatments_overdue: { id: number; patient_id: number; treated_on: string }[];
+    gkv_treatments_without_prescription: number;
+    patients_without_data_consent: number[];
+    treated_patients_without_anamnesis: number[];
+    treated_patients_without_diagnosis: number[];
+  };
+}

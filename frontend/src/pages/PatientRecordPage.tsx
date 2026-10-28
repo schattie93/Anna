@@ -13,6 +13,7 @@ import FilesTab from "./record/FilesTab";
 import FindingsTab from "./record/FindingsTab";
 import GoalsTab from "./record/GoalsTab";
 import HistoryTab from "./record/HistoryTab";
+import InvoicesTab from "./record/InvoicesTab";
 import OverviewTab from "./record/OverviewTab";
 import PrescriptionsTab from "./record/PrescriptionsTab";
 import ReportDialog from "./record/ReportDialog";
@@ -29,6 +30,7 @@ const TABS = [
   ["uebungen", "Übungen"],
   ["dateien", "Bilder & Dokumente"],
   ["ziele", "Ziele"],
+  ["rechnungen", "Rechnungen"],
   ["protokoll", "Änderungsprotokoll"],
 ] as const;
 
@@ -53,7 +55,7 @@ export default function PatientRecordPage() {
   const p = patient.data;
   if (!p || !catalog) return <p className="muted">Lade Patientenakte …</p>;
   if (medical && (!anamneses.data || !diagnoses.data || !treatments.data || !findings.data || !goals.data || !prescriptions.data)) return <p className="muted">Lade Patientenakte …</p>;
-  const tabs = medical ? TABS : TABS.slice(0, 1);
+  const tabs = medical ? TABS : TABS.filter(([slug]) => slug === "" || slug === "rechnungen");
 
   const latestAnamnesis = anamneses.data?.find((a) => !a.voided);
   const redFlags = latestAnamnesis?.red_flags ?? [];
@@ -120,6 +122,7 @@ export default function PatientRecordPage() {
       {medical && tab === "uebungen" && <ExercisesTab patientId={p.id} entries={plans.data ?? []} reload={plans.reload} />}
       {medical && tab === "dateien" && <FilesTab patientId={p.id} entries={files.data ?? []} reload={files.reload} />}
       {medical && tab === "ziele" && <GoalsTab patientId={p.id} entries={goals.data!} findings={findings.data!} reload={goals.reload} />}
+      {tab === "rechnungen" && <InvoicesTab patient={p} />}
       {medical && tab === "protokoll" && <HistoryTab patientId={p.id} />}
       {reporting && <ReportDialog patientId={p.id} defaultRecipient={p.referring_physician} onClose={() => setReporting(false)} />}
     </div>

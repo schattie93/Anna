@@ -1192,3 +1192,99 @@ ins {
   border-radius: 8px;
   background: var(--bg);
 }
+
+/* --- Phase 5: Abrechnung, Auswertung ------------------------------------- */
+
+.right {
+  text-align: right;
+}
+.clickable {
+  cursor: pointer;
+}
+.clickable:hover td {
+  background: var(--primary-soft);
+}
+.struck {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.pre {
+  white-space: pre-line;
+}
+.checklist {
+  list-style: none;
+  padding: 0;
+}
+.compact {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.9rem;
+  color: var(--danger);
+}
+.year {
+  min-width: 4ch;
+  text-align: center;
+}
+button.stat {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.meter {
+  list-style: none;
+  padding: 0;
+}
+.meter li {
+  display: grid;
+  grid-template-columns: minmax(120px, 2fr) 3fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+}
+.meter .bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.meter .bar i {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+.checks-list {
+  list-style: none;
+  padding: 0;
+}
+.checks-list li {
+  padding: 0.5rem 0 0.5rem 1.6rem;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.checks-list li::before {
+  position: absolute;
+  left: 0;
+  content: "✓";
+  color: var(--ok);
+  font-weight: 700;
+}
+.checks-list li.warn::before {
+  content: "⚠";
+  color: var(--warn);
+}
+.chip-link {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+tfoot td {
+  border-bottom: 0;
+}
+td input,
+td select {
+  min-height: 40px;
+}

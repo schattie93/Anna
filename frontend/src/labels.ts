@@ -25,6 +25,10 @@ export const ACTION: Record<string, string> = {
   void: "storniert",
 };
 export const ENTITY: Record<string, string> = {
+  invoice: "Rechnung",
+  payment: "Zahlung",
+  service: "Leistung",
+  settings: "Einstellungen",
   prescription: "Verordnung",
   appointment: "Termin",
   follow_up: "Wiedervorlage",
@@ -80,6 +84,7 @@ export const FIELD: Record<string, string> = {
   treated_on: "Datum", diagnosis_id: "Diagnose", duration_minutes: "Dauer (min)", measures: "Maßnahmen",
   subjective: "Subjektiv", objective: "Objektiv", assessment: "Beurteilung", plan: "Plan",
   pain_before: "Schmerz vorher", pain_after: "Schmerz nachher", home_exercises: "Hausübungen",
+  price_cents: "Preis (Cent)", name_: "Name", total_cents: "Gesamtbetrag",
   issued_on: "Ausgestellt am", physician: "Verordner/in", diagnosis_text: "Diagnose (Text)", indication_key: "Indikationsschlüssel",
   measure: "Heilmittel", total_units: "Einheiten", frequency: "Frequenz", urgent: "Dringlich", home_visit: "Hausbesuch",
   prescription_id: "Verordnung", start: "Beginn", end: "Ende", title: "Titel",
@@ -112,3 +117,18 @@ export function addDays(d: Date, n: number): Date {
 export function isoDate(d: Date): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
+
+export function euro(cents: number): string {
+  return (cents / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+}
+
+/** "38", "38,5" oder "1.234,50" -> Cent; null bei ungültiger Eingabe. */
+export function parseEuro(input: string): number | null {
+  const cleaned = input.replace(/[€\s]/g, "").replace(/\./g, "").replace(",", ".");
+  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  return Math.round(Number(cleaned) * 100);
+}
+
+export const INVOICE_STATUS: Record<string, string> = { draft: "Entwurf", issued: "offen", paid: "bezahlt", cancelled: "storniert" };
+export const PAYMENT_METHOD: Record<string, string> = { transfer: "Überweisung", cash: "Bar", card: "Karte" };
+export const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];

@@ -37,6 +37,8 @@ export default function Layout() {
           <NavLink to="/termine">Termine</NavLink>
           <NavLink to="/patienten">Patienten</NavLink>
           {user.role !== "reception" && <NavLink to="/uebungen">Übungen</NavLink>}
+          <NavLink to="/abrechnung">Abrechnung</NavLink>
+          {user.role !== "reception" && <NavLink to="/auswertung">Auswertung</NavLink>}
           <NavLink to="/einstellungen">{user.full_name}</NavLink>
           <button className="link" onClick={logout}>
             Abmelden

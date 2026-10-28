@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 
 from .db import SessionLocal
-from .models import Anamnesis, Diagnosis, InsuranceType, Patient, Role, Sex, Side, Treatment, TreatmentStatus, User
+from .models import Anamnesis, Diagnosis, InsuranceType, Patient, Role, ServiceItem, Sex, Side, Treatment, TreatmentStatus, User
 from .security import hash_password
 
 DEMO_PATIENTS = [
@@ -60,6 +60,9 @@ def seed_demo() -> None:
                     pain_before=6 - n, pain_after=5 - n,
                     status=TreatmentStatus.draft if days_ago == 0 else TreatmentStatus.final,
                 ))
+        # Beispiel-Leistungen (erfundene Preise – für den echten Betrieb unter Abrechnung > Leistungen anpassen)
+        for code, name, cents in (("KG", "Krankengymnastik 25 Min.", 3800), ("MT", "Manuelle Therapie 25 Min.", 4200), ("MLD", "Manuelle Lymphdrainage 45 Min.", 6500)):
+            db.add(ServiceItem(code=code, name=name, price_cents=cents))
         db.commit()
     print("Demo-Daten angelegt. Anmeldung: demo / demo-passwort")
 

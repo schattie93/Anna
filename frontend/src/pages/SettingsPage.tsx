@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { api, type Role, type User } from "../api";
+import { api, type PracticeSettings, type Role, type User } from "../api";
 import { useUser } from "../auth";
 import { ErrorBox, Select, TextField } from "../components/fields";
 import { useApi } from "../hooks";
@@ -11,6 +11,7 @@ export default function SettingsPage() {
     <div className="stack">
       <h1>Einstellungen</h1>
       <PasswordForm />
+      {user.role === "admin" && <PracticeForm />}
       {user.role === "admin" && <UserAdmin currentUserId={user.id} />}
     </div>
   );
@@ -137,5 +138,58 @@ function UserAdmin({ currentUserId }: { currentUserId: number }) {
         </div>
       </form>
     </section>
+  );
+}
+
+const PRACTICE_LABELS: [keyof PracticeSettings, string, boolean?][] = [
+  ["practice_name", "Praxisname"],
+  ["practice_owner", "Inhaber/in"],
+  ["practice_address", "Adresse (eine Zeile)"],
+  ["practice_phone", "Telefon"],
+  ["practice_email", "E-Mail"],
+  ["practice_tax_number", "Steuernummer"],
+  ["practice_ik", "Institutionskennzeichen (IK)"],
+  ["practice_bank", "Bank"],
+  ["practice_iban", "IBAN"],
+  ["practice_bic", "BIC"],
+  ["invoice_payment_days", "Zahlungsziel (Tage)"],
+  ["invoice_vat_note", "Umsatzsteuer-Hinweis auf Rechnungen", true],
+  ["invoice_footer", "Fußzeile auf Rechnungen", true],
+];
+
+function PracticeForm() {
+  const { data, reload } = useApi<PracticeSettings>("/settings/practice");
+  const [values, setValues] = useState<PracticeSettings | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const form = values ?? data;
+  if (!form) return null;
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMsg(null);
+    try {
+      await api("/settings/practice", { method: "PUT", body: form });
+      setMsg("Praxisdaten gespeichert.");
+      setValues(null);
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <form className="card form-grid" onSubmit={submit}>
+      <h2 className="wide">Praxisdaten (Briefkopf von Berichten, Rechnungen und Übungsplänen)</h2>
+      {PRACTICE_LABELS.map(([key, label, wide]) => (
+        <TextField key={key} label={label} wide={wide} value={form[key]} onChange={(v) => setValues({ ...form, [key]: v })} />
+      ))}
+      <div className="wide">
+        <ErrorBox error={error} />
+        {msg && <p className="ok-text">{msg}</p>}
+        <button className="btn primary">Speichern</button>
+      </div>
+    </form>
   );
 }

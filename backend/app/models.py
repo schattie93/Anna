@@ -3,7 +3,7 @@
 import enum
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -92,6 +92,19 @@ class AppointmentStatus(str, enum.Enum):
     done = "done"
     cancelled = "cancelled"  # abgesagt
     no_show = "no_show"  # nicht erschienen
+
+
+class InvoiceStatus(str, enum.Enum):
+    draft = "draft"
+    issued = "issued"  # gestellt, offen
+    paid = "paid"
+    cancelled = "cancelled"  # storniert (durch Stornorechnung)
+
+
+class PaymentMethod(str, enum.Enum):
+    transfer = "transfer"
+    cash = "cash"
+    card = "card"
 
 
 class TimestampMixin:
@@ -460,3 +473,84 @@ class ExercisePlanItem(Base):
 
     plan: Mapped[ExercisePlan] = relationship(back_populates="items")
     exercise: Mapped[Exercise | None] = relationship()
+
+
+class ServiceItem(TimestampMixin, Base):
+    """Leistungskatalog für Privat-/Selbstzahlerrechnungen. Preise in Cent."""
+
+    __tablename__ = "service_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str | None] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(200))
+    price_cents: Mapped[int] = mapped_column(Integer)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Invoice(TimestampMixin, Base):
+    """Rechnung. Entwürfe sind frei änderbar; gestellte Rechnungen sind unveränderlich (Korrektur nur per Stornorechnung)."""
+
+    __tablename__ = "invoices"
+    __table_args__ = (UniqueConstraint("year", "seq", name="uq_invoice_year_seq"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    status: Mapped[InvoiceStatus] = mapped_column(_enum(InvoiceStatus), default=InvoiceStatus.draft, index=True)
+    year: Mapped[int | None] = mapped_column(Integer)
+    seq: Mapped[int | None] = mapped_column(Integer)
+    issue_date: Mapped[date | None] = mapped_column(Date)
+    due_date: Mapped[date | None] = mapped_column(Date)
+    recipient_name: Mapped[str] = mapped_column(String(200))
+    recipient_address: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
+    vat_note: Mapped[str | None] = mapped_column(Text)
+    total_cents: Mapped[int] = mapped_column(Integer, default=0)
+    cancels_id: Mapped[int | None] = mapped_column(ForeignKey("invoices.id"))
+
+    patient: Mapped[Patient] = relationship()
+    created_by: Mapped[User] = relationship()
+    items: Mapped[list["InvoiceItem"]] = relationship(back_populates="invoice", cascade="all, delete-orphan", order_by="InvoiceItem.position")
+    payments: Mapped[list["Payment"]] = relationship(back_populates="invoice", cascade="all, delete-orphan", order_by="Payment.paid_on")
+
+    @property
+    def number(self) -> str | None:
+        return f"{self.year}-{self.seq:04d}" if self.year and self.seq else None
+
+    @property
+    def paid_cents(self) -> int:
+        return sum(p.amount_cents for p in self.payments if not p.voided)
+
+
+class InvoiceItem(Base):
+    __tablename__ = "invoice_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    treatment_id: Mapped[int | None] = mapped_column(ForeignKey("treatments.id"), index=True)
+    service_date: Mapped[date] = mapped_column(Date)
+    description: Mapped[str] = mapped_column(String(300))
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+    unit_price_cents: Mapped[int] = mapped_column(Integer)
+
+    invoice: Mapped[Invoice] = relationship(back_populates="items")
+
+    @property
+    def total_cents(self) -> int:
+        return self.quantity * self.unit_price_cents
+
+
+class Payment(TimestampMixin, VoidableMixin, Base):
+    __tablename__ = "payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id", ondelete="CASCADE"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    paid_on: Mapped[date] = mapped_column(Date)
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    method: Mapped[PaymentMethod] = mapped_column(_enum(PaymentMethod), default=PaymentMethod.transfer)
+    note: Mapped[str | None] = mapped_column(String(300))
+
+    invoice: Mapped[Invoice] = relationship(back_populates="payments")
+    created_by: Mapped[User] = relationship()

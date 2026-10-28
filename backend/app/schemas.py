@@ -12,7 +12,9 @@ from .models import (
     FindingCategory,
     GoalStatus,
     InsuranceType,
+    InvoiceStatus,
     MarkKind,
+    PaymentMethod,
     Role,
     Sex,
     Side,
@@ -665,3 +667,126 @@ class SoapOut(BaseModel):
 class DraftOut(BaseModel):
     text: str
     notice: str = "KI-Entwurf – bitte vollständig prüfen, bevor er übernommen wird."
+
+
+# --- Abrechnung ------------------------------------------------------------------
+
+
+class ServiceIn(BaseModel):
+    code: str | None = None
+    name: NonEmpty
+    price_cents: Annotated[int, Field(ge=0, le=10_000_000)]
+    active: bool = True
+
+
+class ServiceOut(ORM, ServiceIn):
+    id: int
+
+
+class InvoiceItemIn(BaseModel):
+    treatment_id: int | None = None
+    service_date: date
+    description: NonEmpty
+    quantity: Annotated[int, Field(ge=1, le=999)] = 1
+    unit_price_cents: Annotated[int, Field(ge=0, le=10_000_000)]
+
+
+class InvoiceItemOut(ORM):
+    id: int
+    treatment_id: int | None
+    service_date: date
+    description: str
+    quantity: int
+    unit_price_cents: int
+    total_cents: int
+
+
+class PaymentIn(BaseModel):
+    paid_on: date
+    amount_cents: Annotated[int, Field(gt=0, le=10_000_000)]
+    method: PaymentMethod = PaymentMethod.transfer
+    note: str | None = None
+
+
+class PaymentOut(ORM):
+    id: int
+    paid_on: date
+    amount_cents: int
+    method: PaymentMethod
+    note: str | None
+    voided: bool
+    void_reason: str | None
+    created_by: Author
+
+
+class InvoiceDraftIn(BaseModel):
+    recipient_name: NonEmpty
+    recipient_address: str | None = None
+    note: str | None = None
+    items: Annotated[list[InvoiceItemIn], Field(min_length=1, max_length=200)]
+
+
+class InvoiceFromTreatments(BaseModel):
+    patient_id: int
+    treatment_ids: Annotated[list[int], Field(min_length=1, max_length=100)]
+    service_id: int
+    recipient_name: str | None = None
+    recipient_address: str | None = None
+
+
+class InvoiceOut(ORM):
+    id: int
+    number: str | None
+    status: InvoiceStatus
+    patient: PatientListItem
+    recipient_name: str
+    recipient_address: str | None
+    issue_date: date | None
+    due_date: date | None
+    note: str | None
+    vat_note: str | None
+    total_cents: int
+    paid_cents: int
+    cancels_id: int | None
+    items: list[InvoiceItemOut]
+    payments: list[PaymentOut]
+    created_by: Author
+    overdue: bool = False
+
+
+class InvoiceListItem(ORM):
+    id: int
+    number: str | None
+    status: InvoiceStatus
+    patient: PatientListItem
+    issue_date: date | None
+    due_date: date | None
+    total_cents: int
+    paid_cents: int
+    cancels_id: int | None
+    overdue: bool = False
+
+
+class BillableTreatment(BaseModel):
+    treatment_id: int
+    treated_on: date
+    duration_minutes: int | None
+    measures: list[str]
+    prescription_label: str | None
+
+
+class GkvRow(BaseModel):
+    prescription_id: int
+    patient: PatientListItem
+    insurance_name: str | None
+    insurance_number: str | None
+    issued_on: date
+    physician: str | None
+    icd10_code: str | None
+    indication_key: str | None
+    measure: str
+    total_units: int
+    units_done: int
+    treatment_dates: list[date]
+    problems: list[str]
+    ready: bool

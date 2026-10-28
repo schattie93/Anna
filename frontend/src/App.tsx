@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import Layout from "./components/Layout";
+import BillingPage from "./pages/BillingPage";
 import CalendarPage from "./pages/CalendarPage";
 import DashboardPage from "./pages/DashboardPage";
 import ExerciseLibraryPage from "./pages/ExerciseLibraryPage";
@@ -9,6 +10,7 @@ import PatientEditPage from "./pages/PatientEditPage";
 import PatientListPage from "./pages/PatientListPage";
 import PatientRecordPage from "./pages/PatientRecordPage";
 import SettingsPage from "./pages/SettingsPage";
+import StatsPage from "./pages/StatsPage";
 
 export default function App() {
   const { status } = useAuth();
@@ -25,6 +27,8 @@ export default function App() {
         <Route path="patienten/neu" element={<PatientEditPage />} />
         <Route path="patienten/:id/bearbeiten" element={<PatientEditPage />} />
         <Route path="patienten/:id/:tab?" element={<PatientRecordPage />} />
+        <Route path="abrechnung/:tab?" element={<BillingPage />} />
+        <Route path="auswertung" element={<StatsPage />} />
         <Route path="einstellungen" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
