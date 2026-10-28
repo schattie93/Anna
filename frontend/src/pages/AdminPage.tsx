@@ -6,6 +6,7 @@ import Modal from "../components/Modal";
 import { TextField } from "../components/fields";
 import { useApi } from "../hooks";
 import { ACTION, ENTITY, FIELD, formatDate, formatDateTime } from "../labels";
+import TemplatesTab from "./TemplatesTab";
 
 export default function AdminPage() {
   const { tab = "betrieb" } = useParams();
@@ -16,10 +17,12 @@ export default function AdminPage() {
         <NavLink to="/verwaltung" end>
           Betrieb &amp; Sicherheit
         </NavLink>
+        <NavLink to="/verwaltung/vorlagen">Fachliche Vorlagen</NavLink>
         <NavLink to="/verwaltung/datenschutz">Aufbewahrung &amp; Löschung</NavLink>
         <NavLink to="/verwaltung/protokoll">Änderungsprotokoll</NavLink>
       </nav>
       {tab === "betrieb" && <OpsTab />}
+      {tab === "vorlagen" && <TemplatesTab />}
       {tab === "datenschutz" && <RetentionTab />}
       {tab === "protokoll" && <AuditTab />}
     </div>

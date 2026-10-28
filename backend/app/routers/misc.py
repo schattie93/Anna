@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..catalog import FINDING_PRESETS, MEASURES, RED_FLAGS, ROM_NORMS, TEST_RESULTS, YELLOW_FLAGS
+from .. import catalog_service as cs
+from ..catalog import TEST_RESULTS
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import Appointment, AppointmentStatus, AuditEntry, FollowUp, Patient, Prescription, Role, Treatment, TreatmentStatus, User
@@ -16,13 +17,21 @@ router = APIRouter(prefix="/api", tags=["misc"])
 
 
 @router.get("/catalog", response_model=Catalog)
-def catalog(_: User = Depends(get_current_user)):
+def catalog(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    def norm(i):
+        return (i.norm_opposite, i.norm_neutral, i.norm_main) if None not in (i.norm_opposite, i.norm_neutral, i.norm_main) else None
+
+    all_red, all_yellow = cs.items(db, "red_flag", False), cs.items(db, "yellow_flag", False)
     return Catalog(
-        red_flags=RED_FLAGS,
-        yellow_flags=YELLOW_FLAGS,
-        rom_norms=ROM_NORMS,
-        measures=MEASURES,
-        finding_presets=[FindingPreset(category=c, name=n, unit=u) for c, n, u in FINDING_PRESETS],
+        red_flags={i.key: i.label for i in all_red if i.active},
+        red_flags_all={i.key: i.label for i in all_red},
+        yellow_flags={i.key: i.label for i in all_yellow if i.active},
+        yellow_flags_all={i.key: i.label for i in all_yellow},
+        measures=[i.label for i in cs.items(db, "measure")],
+        finding_presets=[
+            FindingPreset(category=i.category or "measure", name=i.label, unit=i.unit, norm=norm(i), reviewed=i.reviewed)
+            for i in cs.items(db, "finding_preset")
+        ],
         test_results=TEST_RESULTS,
     )
 

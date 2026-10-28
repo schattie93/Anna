@@ -11,6 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from .. import audit
+from .. import catalog_service as cs
 from ..db import get_db
 from ..deps import get_current_user, get_patient, require_medical
 from ..models import Anamnesis, Attachment, AttachmentKind, Diagnosis, Examination, Patient, Prescription, Treatment, TreatmentStatus, User
@@ -62,6 +63,13 @@ def _list(db: Session, model, patient: Patient, *order):
 # --- Anamnese ----------------------------------------------------------------
 
 
+def _check_flags(db: Session, data) -> None:
+    for kind, values, label in (("red_flag", data.red_flags, "Warnzeichen"), ("yellow_flag", data.yellow_flags, "psychosoziale Faktoren")):
+        unknown = set(values) - cs.known_keys(db, kind)
+        if unknown:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unbekannte {label}: {', '.join(sorted(unknown))}")
+
+
 @router.get("/anamneses", response_model=list[AnamnesisOut])
 def list_anamneses(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
     return _list(db, Anamnesis, patient, Anamnesis.recorded_on.desc(), Anamnesis.id.desc())
@@ -71,6 +79,7 @@ def list_anamneses(patient: Patient = Depends(get_patient), db: Session = Depend
 def create_anamnesis(
     data: AnamnesisIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
+    _check_flags(db, data)
     entry = Anamnesis(**data.model_dump(), patient_id=patient.id, created_by_id=user.id)
     db.add(entry)
     db.flush()
@@ -89,6 +98,7 @@ def update_anamnesis(
 ):
     entry = _get_entry(db, Anamnesis, entry_id, patient)
     _ensure_not_voided(entry)
+    _check_flags(db, data)
     diff = audit.apply_changes(entry, data.model_dump(exclude={"correction_reason"}))
     if diff:
         audit.log(db, user, "correct", "anamnesis", entry.id, patient.id, changes=diff, reason=data.correction_reason)

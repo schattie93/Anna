@@ -26,6 +26,7 @@ export const ACTION: Record<string, string> = {
 };
 export const ENTITY: Record<string, string> = {
   examination: "Erstbefund",
+  catalog: "Vorlage",
   indication: "Heilmittelkatalog",
   invoice: "Rechnung",
   payment: "Zahlung",

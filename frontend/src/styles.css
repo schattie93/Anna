@@ -1342,3 +1342,12 @@ code {
 .sig-pad {
   max-width: 640px;
 }
+
+.reorder {
+  white-space: nowrap;
+  width: 1%;
+}
+.reorder .btn {
+  min-height: 36px;
+  padding: 0 0.6rem;
+}

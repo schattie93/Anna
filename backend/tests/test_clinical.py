@@ -59,7 +59,8 @@ def test_neutral_zero_rom(client, base):
     kraft = client.post(f"{base}/findings", json={**ok, "category": "strength", "name": "Quadrizeps", "unit": "0-5", "value_num": 4}).json()
     assert kraft["value_opposite"] is None and kraft["value_neutral"] is None
     cat = client.get("/api/catalog").json()
-    assert cat["rom_norms"]["Knie (Extension/Flexion)"] == [0, 0, 140]
+    knie = next(p for p in cat["finding_presets"] if p["name"] == "Knie (Extension/Flexion)")
+    assert knie["norm"] == [0, 0, 140] and knie["reviewed"] is False
     assert any(p["name"] == "PSFS (Patient-Specific Functional Scale)" for p in cat["finding_presets"])
 
 

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator, model_validator
 
-from .catalog import RED_FLAGS, TEST_RESULTS, YELLOW_FLAGS
+from .catalog import TEST_RESULTS
 from .models import (
     AppointmentStatus,
     AttachmentKind,
@@ -184,20 +184,10 @@ class AnamnesisBase(BaseModel):
     activity_sport: str | None = None
     goals: str | None = None
 
-    @field_validator("red_flags")
+    @field_validator("red_flags", "yellow_flags")
     @classmethod
-    def known_red_flags(cls, v: list[str]) -> list[str]:
-        unknown = set(v) - RED_FLAGS.keys()
-        if unknown:
-            raise ValueError(f"Unbekannte Warnzeichen: {', '.join(sorted(unknown))}")
-        return sorted(set(v))
-
-    @field_validator("yellow_flags")
-    @classmethod
-    def known_yellow_flags(cls, v: list[str]) -> list[str]:
-        unknown = set(v) - YELLOW_FLAGS.keys()
-        if unknown:
-            raise ValueError(f"Unbekannte psychosoziale Faktoren: {', '.join(sorted(unknown))}")
+    def unique_sorted(cls, v: list[str]) -> list[str]:
+        # Ob die Schlüssel existieren, prüft der Router gegen die pflegbaren Vorlagen (Datenbank).
         return sorted(set(v))
 
 
@@ -325,12 +315,15 @@ class FindingPreset(BaseModel):
     category: FindingCategory
     name: str
     unit: str | None
+    norm: tuple[float, float, float] | None = None  # Richtwerte Gegenrichtung/Neutral/Hauptrichtung
+    reviewed: bool = False
 
 
 class Catalog(BaseModel):
-    red_flags: dict[str, str]
+    red_flags: dict[str, str]  # aktive Warnzeichen (Schlüssel -> Text)
+    red_flags_all: dict[str, str] = {}  # inkl. deaktivierter, für die Anzeige älterer Einträge
     yellow_flags: dict[str, str]
-    rom_norms: dict[str, tuple[int, int, int]]
+    yellow_flags_all: dict[str, str] = {}
     measures: list[str]
     finding_presets: list[FindingPreset]
     test_results: list[str]
@@ -860,3 +853,43 @@ class IndicationIn(BaseModel):
 
 class IndicationOut(ORM, IndicationIn):
     id: int
+
+
+# --- Vorlagenverwaltung (Administrator) ---------------------------------------------------------
+
+
+class CatalogItemIn(BaseModel):
+    kind: str
+    label: NonEmpty
+    category: str | None = None
+    unit: str | None = None
+    norm_opposite: float | None = None
+    norm_neutral: float | None = None
+    norm_main: float | None = None
+
+
+class CatalogItemUpdate(BaseModel):
+    label: NonEmpty
+    category: str | None = None
+    unit: str | None = None
+    norm_opposite: float | None = None
+    norm_neutral: float | None = None
+    norm_main: float | None = None
+    active: bool = True
+    reviewed: bool = False
+
+
+class CatalogItemOut(ORM):
+    id: int
+    kind: str
+    key: str
+    label: str
+    category: str | None
+    unit: str | None
+    norm_opposite: float | None
+    norm_neutral: float | None
+    norm_main: float | None
+    sort_order: int
+    active: bool
+    reviewed: bool
+    reviewed_by: str | None

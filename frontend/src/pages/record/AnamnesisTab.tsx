@@ -87,12 +87,12 @@ export function AnamnesisView({ a, catalog }: { a: Anamnesis; catalog: Catalog }
         label="Warnzeichen"
         value={
           a.red_flags.length > 0 && (
-            <span className="danger-text">⚠ {a.red_flags.map((f) => catalog.red_flags[f] ?? f).join(", ")}</span>
+            <span className="danger-text">⚠ {a.red_flags.map((f) => catalog.red_flags_all[f] ?? f).join(", ")}</span>
           )
         }
       />
       <Detail label="Anmerkung Warnzeichen" value={a.red_flags_notes} />
-      <Detail label="Psychosoziale Faktoren" value={a.yellow_flags.length > 0 && a.yellow_flags.map((f) => catalog.yellow_flags[f] ?? f).join(", ")} />
+      <Detail label="Psychosoziale Faktoren" value={a.yellow_flags.length > 0 && a.yellow_flags.map((f) => catalog.yellow_flags_all[f] ?? f).join(", ")} />
       <Detail label="Sozialanamnese" value={a.social_history} />
       <Detail label="Schlaf" value={a.sleep} />
       <Detail label="Alltag / Sport" value={a.activity_sport} />
@@ -159,13 +159,13 @@ function AnamnesisForm({
 
       <section className="card form-grid">
         <h3 className="wide">Warnzeichen (Red Flags)</h3>
-        <Chips label="Zutreffendes antippen" options={catalog.red_flags} value={a.red_flags} onChange={(v) => set("red_flags", v)} tone="warn" />
+        <Chips label="Zutreffendes antippen" options={{ ...catalog.red_flags, ...Object.fromEntries(a.red_flags.map((k) => [k, catalog.red_flags_all[k] ?? k])) }} value={a.red_flags} onChange={(v) => set("red_flags", v)} tone="warn" />
         <TextArea label="Anmerkungen zu Warnzeichen" value={a.red_flags_notes} onChange={(v) => set("red_flags_notes", v)} rows={2} />
       </section>
 
       <section className="card form-grid">
         <h3 className="wide">Psychosoziale Faktoren (Yellow Flags) und Alltag</h3>
-        <Chips label="Zutreffendes antippen (Hinweise auf Chronifizierungsrisiko)" options={catalog.yellow_flags} value={a.yellow_flags} onChange={(v) => set("yellow_flags", v)} />
+        <Chips label="Zutreffendes antippen (Hinweise auf Chronifizierungsrisiko)" options={{ ...catalog.yellow_flags, ...Object.fromEntries(a.yellow_flags.map((k) => [k, catalog.yellow_flags_all[k] ?? k])) }} value={a.yellow_flags} onChange={(v) => set("yellow_flags", v)} />
         <TextArea label="Sozialanamnese (Beruf, Familie, Wohnsituation, Belastungen)" value={a.social_history} onChange={(v) => set("social_history", v)} rows={2} />
         <TextArea label="Schlaf" value={a.sleep} onChange={(v) => set("sleep", v)} rows={2} />
       </section>

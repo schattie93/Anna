@@ -603,3 +603,27 @@ class Examination(TimestampMixin, VoidableMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     created_by: Mapped[User] = relationship()
+
+
+class CatalogItem(TimestampMixin, Base):
+    """Von der Praxis pflegbare Vorlagen: Warnzeichen, psychosoziale Faktoren, Maßnahmen, Befundvorlagen (inkl. Richtwerte).
+
+    Die mitgelieferten Standardwerte werden beim ersten Zugriff angelegt und gelten als "ungeprüft", bis ein Administrator
+    sie freigibt (reviewed). Einträge werden nie gelöscht, sondern deaktiviert (ältere Akten verweisen auf sie)."""
+
+    __tablename__ = "catalog_items"
+    __table_args__ = (UniqueConstraint("kind", "key", name="uq_catalog_kind_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(24), index=True)  # red_flag | yellow_flag | measure | finding_preset
+    key: Mapped[str] = mapped_column(String(120))
+    label: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str | None] = mapped_column(String(16))  # nur Befundvorlagen: rom | strength | test | measure
+    unit: Mapped[str | None] = mapped_column(String(16))
+    norm_opposite: Mapped[float | None] = mapped_column(Float)  # Richtwerte Neutral-Null-Methode
+    norm_neutral: Mapped[float | None] = mapped_column(Float)
+    norm_main: Mapped[float | None] = mapped_column(Float)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
+    reviewed_by: Mapped[str | None] = mapped_column(String(128))

@@ -88,7 +88,7 @@ export default function PatientRecordPage() {
         <div className="head-side">
           {!p.consent_data_processing && <span className="badge warn">Einwilligung Datenverarbeitung fehlt</span>}
           {redFlags.length > 0 && (
-            <span className="badge danger" title={redFlags.map((f) => catalog.red_flags[f]).join(", ")}>
+            <span className="badge danger" title={redFlags.map((f) => catalog.red_flags_all[f] ?? f).join(", ")}>
               ⚠ {redFlags.length} Warnzeichen
             </span>
           )}

@@ -275,12 +275,31 @@ export interface FindingPreset {
   category: FindingCategory;
   name: string;
   unit: string | null;
+  norm: [number, number, number] | null;
+  reviewed: boolean;
+}
+
+export interface CatalogItem {
+  id: number;
+  kind: "red_flag" | "yellow_flag" | "measure" | "finding_preset";
+  key: string;
+  label: string;
+  category: FindingCategory | null;
+  unit: string | null;
+  norm_opposite: number | null;
+  norm_neutral: number | null;
+  norm_main: number | null;
+  sort_order: number;
+  active: boolean;
+  reviewed: boolean;
+  reviewed_by: string | null;
 }
 
 export interface Catalog {
   red_flags: Record<string, string>;
+  red_flags_all: Record<string, string>;
   yellow_flags: Record<string, string>;
-  rom_norms: Record<string, [number, number, number]>;
+  yellow_flags_all: Record<string, string>;
   measures: string[];
   finding_presets: FindingPreset[];
   test_results: string[];

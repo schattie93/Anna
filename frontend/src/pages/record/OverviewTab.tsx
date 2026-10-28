@@ -60,7 +60,7 @@ export default function OverviewTab({
             <Detail label="Therapieziele" value={anamnesis.goals} />
             <Detail
               label="Warnzeichen"
-              value={anamnesis.red_flags.length > 0 && <span className="danger-text">⚠ {anamnesis.red_flags.map((f) => catalog.red_flags[f]).join(", ")}</span>}
+              value={anamnesis.red_flags.length > 0 && <span className="danger-text">⚠ {anamnesis.red_flags.map((f) => catalog.red_flags_all[f] ?? f).join(", ")}</span>}
             />
           </dl>
         ) : (

@@ -41,7 +41,8 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
 
   const presets = catalog.finding_presets.filter((p) => p.category === category);
   const labels = category === "rom" ? pairLabels(name) : null;
-  const norm = labels ? catalog.rom_norms[name] : undefined;
+  const preset = presets.find((p) => p.name === name);
+  const norm = labels ? preset?.norm ?? undefined : undefined;
 
   function pickName(v: string) {
     setName(v);
@@ -151,7 +152,7 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
                 </div>
                 {norm && (
                   <span className="field-hint">
-                    Richtwert (ungeprüft, bitte mit Ihrer Quelle abgleichen): {norm[0]}-{norm[1]}-{norm[2]}
+                    Richtwert{preset?.reviewed ? " (Praxis)" : " (ungeprüft, bitte mit Ihrer Quelle abgleichen)"}: {norm[0]}-{norm[1]}-{norm[2]}
                   </span>
                 )}
               </div>
