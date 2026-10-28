@@ -5,6 +5,8 @@ auf den eigenen Rechner oder auf Adressen im privaten Netz zeigen (localhost, Do
 RFC-1918-Adressen). Alle Funktionen sind optional und ohne Konfiguration abgeschaltet.
 """
 
+import base64
+import io
 import ipaddress
 import json
 import re
@@ -62,9 +64,16 @@ def ocr_languages() -> str | None:
     return "+".join(langs) or None
 
 
+def _vision_url() -> str | None:
+    s = get_settings()
+    return s.vision_url or s.llm_url
+
+
 def status_info() -> dict:
     s = get_settings()
+    vision = _vision_url()
     return {
+        "handwriting": bool(s.vision_model and vision and is_local_url(vision)),
         "transcribe": bool(s.whisper_url and is_local_url(s.whisper_url)),
         "ocr": bool(s.ocr_enabled and ocr_languages()),
         "suggest": bool(s.llm_url and is_local_url(s.llm_url)),
@@ -176,3 +185,84 @@ def parse_soap(raw: str) -> dict[str, str | None]:
         except json.JSONDecodeError:
             data = {}
     return {k: (str(data[k]).strip() if data.get(k) else None) for k in ("subjective", "objective", "assessment", "plan")}
+
+
+# --- Handschrifterkennung (lokales Bild-Sprachmodell) -------------------------------------
+
+HTR_SYSTEM = (
+    "Du bist ein Transkriptionswerkzeug für handschriftliche Notizen aus einer Physiotherapiepraxis. "
+    "Schreibe den sichtbaren Text Wort für Wort ab, auf Deutsch, ohne Zusammenfassung, ohne Ergänzungen und ohne Erklärungen. "
+    "Behalte Zeilenumbrüche und Aufzählungen bei. Stellen, die du nicht sicher lesen kannst, schreibst du als [unleserlich] oder "
+    "mit Fragezeichen in eckigen Klammern, zum Beispiel [Lasègue?]. Erfinde niemals Text. Antworte ausschließlich mit der Transkription."
+)
+
+
+def _jpeg_pages(data: bytes, is_pdf: bool) -> list[bytes]:
+    from PIL import Image, ImageOps
+
+    sources: list[bytes] = []
+    if is_pdf:
+        if not shutil.which("pdftoppm"):
+            raise AssistUnavailable("PDF-Erkennung benötigt poppler-utils (pdftoppm)")
+        with tempfile.TemporaryDirectory(prefix="physioflow-htr-") as tmp:
+            folder = Path(tmp)
+            (folder / "in.pdf").write_bytes(data)
+            subprocess.run(["pdftoppm", "-r", "150", "-l", "5", "-png", str(folder / "in.pdf"), str(folder / "page")], check=True, timeout=120)
+            sources = [p.read_bytes() for p in sorted(folder.glob("page*.png"))]
+    else:
+        sources = [data]
+    pages = []
+    for raw in sources:
+        try:
+            with Image.open(io.BytesIO(raw)) as img:
+                img = ImageOps.exif_transpose(img)
+                if img.mode in ("RGBA", "LA", "P"):  # Transparenz auf Weiß (Stiftzeichnungen)
+                    img = img.convert("RGBA")
+                    background = Image.new("RGBA", img.size, (255, 255, 255, 255))
+                    background.alpha_composite(img)
+                    img = background
+                img = img.convert("RGB")
+                img.thumbnail((1800, 1800))
+                out = io.BytesIO()
+                img.save(out, "JPEG", quality=90)
+                pages.append(out.getvalue())
+        except OSError:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Datei ist kein lesbares Bild oder PDF") from None
+    return pages
+
+
+def _clean_transcription(text: str) -> str:
+    text = text.strip()
+    fence = re.match(r"^```[a-zA-Z]*\n(.*?)\n?```$", text, re.S)
+    return (fence.group(1) if fence else text).strip()
+
+
+def handwriting(data: bytes, is_pdf: bool) -> str:
+    s = get_settings()
+    if not s.vision_model:
+        raise AssistUnavailable("Handschrifterkennung ist nicht eingerichtet (PHYSIOFLOW_VISION_MODEL fehlt)")
+    base = _service_url(_vision_url(), "Handschrifterkennung")
+    texts = []
+    for page in _jpeg_pages(data, is_pdf):
+        image_url = "data:image/jpeg;base64," + base64.b64encode(page).decode()
+        try:
+            r = httpx.post(
+                f"{base}/v1/chat/completions",
+                json={
+                    "model": s.vision_model,
+                    "temperature": 0,
+                    "messages": [
+                        {"role": "system", "content": HTR_SYSTEM},
+                        {"role": "user", "content": [
+                            {"type": "text", "text": "Transkribiere die Handschrift auf diesem Bild."},
+                            {"type": "image_url", "image_url": {"url": image_url}},
+                        ]},
+                    ],
+                },
+                timeout=s.llm_timeout_seconds,
+            )
+            r.raise_for_status()
+            texts.append(_clean_transcription(str(r.json()["choices"][0]["message"]["content"])))
+        except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Handschrifterkennung nicht erreichbar: {e.__class__.__name__}") from None
+    return "\n\n".join(t for t in texts if t)

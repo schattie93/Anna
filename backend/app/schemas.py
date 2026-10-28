@@ -671,6 +671,7 @@ class AssistStatus(BaseModel):
     transcribe: bool
     ocr: bool
     suggest: bool
+    handwriting: bool = False
 
 
 class TextOut(BaseModel):

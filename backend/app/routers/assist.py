@@ -2,6 +2,7 @@
 
 from collections import Counter
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
@@ -53,6 +54,18 @@ async def ocr_upload(file: UploadFile = File(...), db: Session = Depends(get_db)
     return TextOut(text=text)
 
 
+@router.post("/assist/handwriting", response_model=TextOut)
+async def handwriting_upload(file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Handschrift in einem Bild (z. B. von der Zeichenfläche) oder PDF als Text erkennen – mit lokalem Bild-Sprachmodell."""
+    data = await file.read(_read_limit() + 1)
+    if not data or len(data) > _read_limit():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Datei leer oder zu groß")
+    text = assist.handwriting(data, is_pdf=data[:5] == b"%PDF-")
+    audit.log(db, user, "assist", "handwriting", changes={"bytes": len(data), "chars": len(text)})
+    db.commit()
+    return TextOut(text=text)
+
+
 @router.post("/assist/polish", response_model=DraftOut)
 def polish(data: SuggestIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     out = assist.suggest("polish", data.text)
@@ -71,14 +84,20 @@ def soap(data: SuggestIn, db: Session = Depends(get_db), user: User = Depends(ge
 
 @router.post("/patients/{patient_id}/attachments/{entry_id}/ocr", response_model=AttachmentOut)
 def ocr_attachment(
-    entry_id: int, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    entry_id: int,
+    mode: Literal["print", "handwriting"] = "print",
+    patient: Patient = Depends(get_patient),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """Erkennt den Text einer gespeicherten Datei und legt ihn zur Korrektur am Eintrag ab."""
+    """Erkennt den Text einer gespeicherten Datei (Druckschrift per OCR oder Handschrift per Bild-Sprachmodell)
+    und legt ihn zur Korrektur am Eintrag ab."""
     entry = _get_entry(db, Attachment, entry_id, patient)
     _ensure_not_voided(entry)
     data = storage.resolve(entry.path).read_bytes()
-    entry.ocr_text = assist.ocr(data, is_pdf=entry.content_type == "application/pdf")
-    audit.log(db, user, "assist", "ocr", entry.id, patient.id, changes={"chars": len(entry.ocr_text)})
+    is_pdf = entry.content_type == "application/pdf"
+    entry.ocr_text = assist.handwriting(data, is_pdf) if mode == "handwriting" else assist.ocr(data, is_pdf)
+    audit.log(db, user, "assist", mode == "handwriting" and "handwriting" or "ocr", entry.id, patient.id, changes={"chars": len(entry.ocr_text)})
     db.commit()
     out = AttachmentOut.model_validate(entry)
     out.has_thumb = entry.thumb_path is not None

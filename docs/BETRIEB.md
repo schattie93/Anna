@@ -111,11 +111,12 @@ Standardmäßig ist alles aus. Es werden nur Adressen im eigenen Netz akzeptiert
 |---|---|---|
 | Diktieren | `PHYSIOFLOW_WHISPER_URL=http://rechner.local:8000` | OpenAI-kompatibler Whisper-Server, z. B. faster-whisper-server, auf einem Rechner im Praxisnetz |
 | Textvorschläge | `PHYSIOFLOW_LLM_URL=http://rechner.local:11434`, `PHYSIOFLOW_LLM_MODEL=...` | OpenAI-kompatibel, z. B. Ollama. Läuft bei den meisten NAS zu langsam, besser auf einem PC mit Grafikkarte |
+| Handschrift erkennen | `PHYSIOFLOW_VISION_MODEL=<Modellname>`, optional `PHYSIOFLOW_VISION_URL` (sonst die LLM-Adresse) | Lokales **Bild-Sprachmodell** (z. B. über Ollama, Kandidaten zum Ausprobieren: Qwen2.5-VL, MiniCPM-V, Llama-3.2-Vision). Braucht deutlich mehr Rechenleistung als das NAS bietet, also einen PC im Praxisnetz, am besten mit Grafikkarte. Die Erkennungsqualität hängt stark vom Modell und von der Handschrift ab und muss mit **echten Beispielen aus der Praxis** geprüft werden |
 | Texterkennung (OCR) | `WITH_OCR` beim Bauen (Standard an) | Tesseract im App-Container, läuft vollständig lokal |
 
 Berichtsentwürfe der KI enthalten **keine** Namen, Adressen oder Versichertennummern (nur Alter, Geschlecht, Diagnosen und Verlauf). KI-Texte sind immer Entwürfe und werden erst nach Prüfung durch die Fachperson übernommen. Die Nutzung wird ohne Inhalte im Protokoll vermerkt.
 
-**Handschrift:** Apple Scribble (iPad) und die Handschrift-zu-Text-Funktion von Samsung/Android arbeiten direkt im Gerät in allen Textfeldern. Zusätzlich lässt sich eine eingescannte Notiz per OCR erkennen. Tesseract ist für **Druckschrift** gedacht und erkennt Handschrift nur eingeschränkt. Welche Tablets und Stifte im Alltag am besten funktionieren, muss noch getestet werden.
+**Handschrift:** Es gibt drei Wege. (1) Apple Scribble (iPad) und die Handschrift-zu-Text-Funktion von Samsung/Android arbeiten direkt im Gerät in allen Textfeldern. (2) Die Stift-Taste ✍ in den Textfeldern der Software: Sie schreiben in eine Fläche, ein lokales Bild-Sprachmodell erkennt die Schrift, und der Text wird erst nach Ihrer Prüfung ins Feld übernommen. (3) Gespeicherte Zeichnungen, Fotos und PDFs lassen sich im Dateibetrachter mit „Handschrift erkennen“ auslesen. Tesseract („Text erkennen (Druckschrift)“) ist für gedruckte Texte gedacht. Handschrifterkennung ist nie fehlerfrei: unleserliche Stellen werden als `[unleserlich]` markiert, ein Ergebnis darf nie ungeprüft übernommen werden. Welche Tablets, Stifte und Modelle im Alltag am besten funktionieren, muss noch getestet werden.
 
 ## 7. Passwort vergessen, Benutzer sperren
 

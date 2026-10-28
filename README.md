@@ -16,7 +16,7 @@ Grundlage ist das Projektkonzept vom 28.10.2026. Alle sechs Phasen sind umgesetz
 | 1 | **Grundsystem** | Lokale Anmeldung, Rollen, Patientenakte (Stammdaten, Versicherung, Einwilligungen), Anamnese mit Red-Flag-Checkliste, Diagnosen (ICD-10), Behandlungen im SOAP-Format (Entwurf → abgeschlossen), Änderungsprotokoll |
 | 2 | **Dokumentation** | Befunde und Messwerte (Beweglichkeit, Kraft, Tests) mit Verlaufsdiagrammen, **Körperatlas** (Schmerzmarkierungen vorne/hinten), Fotos, PDFs und **Stiftzeichnungen** (Einzeichnen in Fotos, Vorher/Nachher-Vergleich), Therapieziele mit Zielerreichung, **Therapiebericht als PDF** |
 | 3 | **Praxisabläufe** | Kalender (Tag/Woche, Serientermine, Blockzeiten, Absagen), **Verordnungen** mit Einheitenzähler und Prüfhinweisen (Fristen, Unterbrechungen), Wiedervorlagen, Erinnerungsliste, **Übungsbibliothek** und Übungspläne als PDF zum Mitgeben |
-| 4 | **Lokale Assistenz** | Diktieren (lokales Whisper), Texterkennung (Tesseract), SOAP aus Diktat und Berichtsentwurf (lokales Sprachmodell). Alles optional, KI-Texte werden nie ungeprüft übernommen |
+| 4 | **Lokale Assistenz** | Diktieren (lokales Whisper), Texterkennung (Tesseract), **Handschrifterkennung** (lokales Bild-Sprachmodell, Stift-Taste im Textfeld und für gespeicherte Zeichnungen/Fotos), SOAP aus Diktat und Berichtsentwurf (lokales Sprachmodell). Alles optional, KI-Texte werden nie ungeprüft übernommen |
 | 5 | **Abrechnung** | Leistungskatalog, Rechnungen für Privat-/Selbstzahler (lückenlose Nummern, Storno, Zahlungen, überfällig, PDF), **Kassenabrechnung (GKV) als Prüfliste mit CSV-Export**, Auswertungen (Behandlungen, Umsatz, Terminquoten, Dokumentationsvollständigkeit) |
 | 6 | **Betrieb & Datenschutz** | Automatische Abmeldung, Kontosperre, unveränderliches Protokoll (auch in der Datenbank erzwungen), Akten-Export (Art. 15/20), Aufbewahrung und Löschung, verschlüsselte Backups mit Wiederherstellungstest, Integritätsprüfung, Lasttest, CI |
 | 7 | **Fachliche Ergänzungen** | Leistungsnachweis (Unterschrift des Patienten je Behandlung, Prüfung in der Kassenabrechnung), Neutral-Null-Methode für Beweglichkeit, erweiterte Anamnese (zusätzliche Warnzeichen, psychosoziale Faktoren, Sozialanamnese), Erstbefund mit ICF-Einordnung, zusätzliche Assessments (PSFS, NDI, Berg u. a.), von der Praxis gepflegter Heilmittelkatalog mit Mengenprüfung, Freigabe von Übungen vor dem Druck |
@@ -94,7 +94,7 @@ Weitere CLI-Befehle: `python -m app.cli check-integrity` prüft Schema, Dateien 
 
 ### Lokale Assistenz einrichten (optional)
 
-In `.env` bzw. als Umgebungsvariablen: `PHYSIOFLOW_WHISPER_URL` (OpenAI-kompatibler Whisper-Server), `PHYSIOFLOW_LLM_URL` und `PHYSIOFLOW_LLM_MODEL` (OpenAI-kompatibel, z. B. Ollama). Es werden nur Adressen im eigenen Netz akzeptiert. OCR braucht Tesseract (im Docker-Image enthalten).
+In `.env` bzw. als Umgebungsvariablen: `PHYSIOFLOW_WHISPER_URL` (OpenAI-kompatibler Whisper-Server), `PHYSIOFLOW_LLM_URL` und `PHYSIOFLOW_LLM_MODEL` (OpenAI-kompatibel, z. B. Ollama), für Handschrift zusätzlich `PHYSIOFLOW_VISION_MODEL` (Bild-Sprachmodell). Es werden nur Adressen im eigenen Netz akzeptiert. OCR braucht Tesseract (im Docker-Image enthalten).
 
 ## Sicherheit und Datenschutz
 

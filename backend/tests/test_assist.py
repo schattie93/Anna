@@ -145,3 +145,71 @@ def test_assist_requires_medical_role(client, admin):
     client.post("/api/auth/logout")
     client.post("/api/auth/login", json={"username": "empfang", "password": "noch-ein-passwort"})
     assert client.get("/api/assist/status").status_code == 403
+
+
+# --- Handschrifterkennung -------------------------------------------------------------
+
+
+def jpeg_page() -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", (400, 120), "white").save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_handwriting_sends_image_to_local_vision_model(client, admin, monkeypatch):
+    configure(monkeypatch, llm_url="http://ollama:11434", vision_model="qwen2.5vl:7b")
+    seen = {}
+
+    def handler(url, kwargs):
+        seen["url"], seen["body"] = url, kwargs["json"]
+        return 200, {"choices": [{"message": {"content": "```\nSchmerz im rechten Knie seit 3 Wochen\n```"}}]}
+
+    monkeypatch.setattr(assist.httpx, "post", fake_post(handler))
+    assert client.get("/api/assist/status").json()["handwriting"] is True
+    r = client.post("/api/assist/handwriting", files={"file": ("n.png", jpeg_page(), "image/png")})
+    assert r.status_code == 200, r.text
+    assert r.json()["text"] == "Schmerz im rechten Knie seit 3 Wochen"  # Codeblock entfernt
+    assert seen["url"] == "http://ollama:11434/v1/chat/completions" and seen["body"]["model"] == "qwen2.5vl:7b"
+    content = seen["body"]["messages"][1]["content"]
+    assert content[1]["image_url"]["url"].startswith("data:image/jpeg;base64,") and seen["body"]["temperature"] == 0
+    assert "Erfinde niemals" in seen["body"]["messages"][0]["content"]
+
+
+def test_handwriting_needs_model_and_local_url(client, admin, monkeypatch):
+    configure(monkeypatch, llm_url="http://ollama:11434")  # kein Modell
+    assert client.get("/api/assist/status").json()["handwriting"] is False
+    assert client.post("/api/assist/handwriting", files={"file": ("n.png", jpeg_page(), "image/png")}).status_code == 501
+    configure(monkeypatch, vision_url="https://api.example-ai.com", vision_model="x")
+    assert client.get("/api/assist/status").json()["handwriting"] is False
+    r = client.post("/api/assist/handwriting", files={"file": ("n.png", jpeg_page(), "image/png")})
+    assert r.status_code == 501 and "lokalen Netz" in r.json()["detail"]
+
+
+def test_handwriting_pdf_pages_and_attachment_mode(client, base, patient, monkeypatch):
+    configure(monkeypatch, vision_url="http://vision.local:11434", vision_model="m")
+    calls = []
+
+    def handler(url, kwargs):
+        calls.append(1)
+        return 200, {"choices": [{"message": {"content": f"Seite {len(calls)}"}}]}
+
+    monkeypatch.setattr(assist.httpx, "post", fake_post(handler))
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 700, "eins"); c.showPage(); c.drawString(100, 700, "zwei"); c.save()
+    r = client.post("/api/assist/handwriting", files={"file": ("n.pdf", buf.getvalue(), "application/pdf")})
+    assert r.status_code == 200 and r.json()["text"] == "Seite 1\n\nSeite 2"
+
+    a = client.post(f"{base}/attachments", data={"kind": "drawing"}, files={"file": ("z.png", jpeg_page(), "image/png")}).json()
+    r = client.post(f"{base}/attachments/{a['id']}/ocr", params={"mode": "handwriting"})
+    assert r.status_code == 200 and r.json()["ocr_text"].startswith("Seite")
+    assert client.post(f"{base}/attachments/{a['id']}/ocr", params={"mode": "unsinn"}).status_code == 422
+
+
+def test_handwriting_errors_are_gateway_errors(client, admin, monkeypatch):
+    configure(monkeypatch, llm_url="http://ollama:11434", vision_model="m")
+    monkeypatch.setattr(assist.httpx, "post", fake_post(lambda u, k: (500, {"error": "x"})))
+    assert client.post("/api/assist/handwriting", files={"file": ("n.png", jpeg_page(), "image/png")}).status_code == 502
+    assert client.post("/api/assist/handwriting", files={"file": ("n.png", b"kein bild", "image/png")}).status_code in (422, 502)

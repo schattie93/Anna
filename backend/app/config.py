@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     llm_url: str | None = None
     llm_model: str = "llama3.1"  # OpenAI-kompatibel (/v1/chat/completions), z. B. Ollama auf einem Rechner im Praxisnetz
     llm_timeout_seconds: int = 180
+    # Handschrifterkennung über ein lokales Bild-Sprachmodell (OpenAI-kompatibel, z. B. Ollama). Standard-Adresse: llm_url.
+    vision_url: str | None = None
+    vision_model: str | None = None
     # Directory containing the built frontend (index.html); served by the backend if present.
     frontend_dist: Path | None = None
 

@@ -5,7 +5,7 @@
 ## Grundsätze
 
 - **Alle Patientendaten bleiben im Praxisnetz.** Keine Cloud, keine externen Dienste, keine Telemetrie. Die Weboberfläche lädt keine Schriften, Skripte oder Bilder von anderen Servern (Content-Security-Policy `default-src 'self'`).
-- **KI nur lokal.** Dienst-Adressen außerhalb des eigenen Netzes werden von der Software abgelehnt.
+- **KI nur lokal.** Dienst-Adressen außerhalb des eigenen Netzes werden von der Software abgelehnt. Das gilt auch für die Handschrifterkennung: Bilder mit Patientendaten gehen nur an Modelle im Praxisnetz.
 - **Datenminimierung.** Berichtsentwürfe der KI enthalten keine Namen, Adressen oder Versichertennummern. Fotos werden neu kodiert und verlieren dabei EXIF-/GPS-Daten.
 - **Entwicklung nur mit fiktiven Daten.** Die Beispieldaten (`python -m app.cli seed-demo`) sind frei erfunden.
 

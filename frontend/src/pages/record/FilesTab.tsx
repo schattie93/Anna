@@ -28,11 +28,11 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
   const [ocrText, setOcrText] = useState<string | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
 
-  async function runOcr(a: Attachment) {
+  async function runOcr(a: Attachment, mode: "print" | "handwriting") {
     setOcrBusy(true);
     setError(null);
     try {
-      const res = await api<Attachment>(`/patients/${patientId}/attachments/${a.id}/ocr`, { method: "POST" });
+      const res = await api<Attachment>(`/patients/${patientId}/attachments/${a.id}/ocr?mode=${mode}`, { method: "POST" });
       setOcrText(res.ocr_text ?? "");
       reload();
     } catch (e) {
@@ -221,7 +221,7 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
           )}
           {(ocrText !== null || open.ocr_text) && (
             <div className="stack">
-              <TextArea label="Erkannter Text (bitte prüfen und korrigieren)" value={ocrText ?? open.ocr_text} onChange={setOcrText} rows={6} />
+              <TextArea label="Erkannter Text (bitte prüfen und korrigieren; bei Handschrift KI-Transkription)" value={ocrText ?? open.ocr_text} onChange={setOcrText} rows={6} />
               <div className="actions">
                 <button className="btn primary" onClick={() => saveOcr(open)}>
                   Text speichern
@@ -232,8 +232,13 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
           <ErrorBox error={error} />
           <div className="actions">
             {assist.ocr && (
-              <button className="btn" onClick={() => runOcr(open)} disabled={ocrBusy}>
-                {ocrBusy ? "Erkenne Text …" : "Text erkennen (OCR)"}
+              <button className="btn" onClick={() => runOcr(open, "print")} disabled={ocrBusy}>
+                {ocrBusy ? "Erkenne Text …" : "Text erkennen (Druckschrift)"}
+              </button>
+            )}
+            {assist.handwriting && (
+              <button className={open.kind === "drawing" ? "btn primary" : "btn"} onClick={() => runOcr(open, "handwriting")} disabled={ocrBusy}>
+                {ocrBusy ? "Erkenne Handschrift …" : "Handschrift erkennen"}
               </button>
             )}
             {open.content_type !== "application/pdf" && (

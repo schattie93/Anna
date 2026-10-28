@@ -449,6 +449,7 @@ export interface AssistStatus {
   transcribe: boolean;
   ocr: boolean;
   suggest: boolean;
+  handwriting: boolean;
 }
 
 export interface SoapSuggestion {

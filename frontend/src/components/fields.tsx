@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { createPortal } from "react-dom";
 import { apiUpload } from "../api";
 import { useAssistStatus } from "../hooks";
+import HandwritingButton from "./HandwritingButton";
 
 type Setter<T> = <K extends keyof T>(key: K, value: T[K]) => void;
 
@@ -137,7 +138,12 @@ export function TextArea({
           placeholder={placeholder}
           onChange={(e) => onChange(required ? e.target.value : blankToNull(e.target.value))}
         />
-        {assist.transcribe && <DictationButton onText={append} />}
+        {(assist.transcribe || assist.handwriting) && (
+          <div className="field-tools">
+            {assist.handwriting && <HandwritingButton onText={append} />}
+            {assist.transcribe && <DictationButton onText={append} />}
+          </div>
+        )}
       </div>
     </Field>
   );

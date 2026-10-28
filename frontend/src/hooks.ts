@@ -35,7 +35,7 @@ export function useCatalog(): Catalog | null {
   return catalog;
 }
 
-const NONE: AssistStatus = { transcribe: false, ocr: false, suggest: false };
+const NONE: AssistStatus = { transcribe: false, ocr: false, suggest: false, handwriting: false };
 let assistPromise: Promise<AssistStatus> | null = null;
 
 /** Welche lokalen Assistenzfunktionen sind eingerichtet? (einmal laden, dann zwischenspeichern) */
