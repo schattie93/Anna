@@ -168,6 +168,7 @@ def test_exercise_library_and_plan_pdf(client, base, admin):
     )
     assert plan.status_code == 201, plan.text
     pid = plan.json()["id"]
+    client.post(f"/api/exercises/{lib[0]['id']}/approve")  # Beispielübungen sind erst nach Freigabe druckbar
     pdf_r = client.get(f"{base}/exercise-plans/{pid}/pdf")
     assert pdf_r.status_code == 200 and pdf_r.content.startswith(b"%PDF-")
     # Bibliotheksänderung verändert ausgegebenen Plan nicht

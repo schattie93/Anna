@@ -7,10 +7,22 @@ import { type TabProps } from "./common";
 
 const TEAL = "#0f766e";
 
+const fmt = (n: number | null) => String(n ?? "–").replace(".", ",");
+
+/** Neutral-Null-Methode: "Gegenrichtung-Neutral-Hauptrichtung", z. B. 0-0-130. */
+function pairLabels(name: string): [string, string] | null {
+  const m = name.match(/\(([^/()]+)\/([^()]+)\)\s*$/);
+  return m ? [m[1].trim(), m[2].trim()] : null;
+}
+
 function show(f: Finding): string {
   if (f.category === "test") return f.value_text ?? "–";
-  return `${String(f.value_num).replace(".", ",")}${f.unit ? " " + f.unit : ""}`;
+  const unit = f.unit ? " " + f.unit : "";
+  if (f.value_opposite !== null) return `${fmt(f.value_opposite)}-${fmt(f.value_neutral ?? 0)}-${fmt(f.value_num)}${unit}`;
+  return `${fmt(f.value_num)}${unit}`;
 }
+
+const num = (v: string): number => Number(v.replace(",", "."));
 
 export default function FindingsTab({ patientId, catalog, entries, reload }: TabProps<Finding>) {
   const [category, setCategory] = useState<FindingCategory>("rom");
@@ -18,6 +30,8 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
   const [name, setName] = useState("");
   const [side, setSide] = useState<Side>("none");
   const [value, setValue] = useState("");
+  const [opposite, setOpposite] = useState("");
+  const [neutral, setNeutral] = useState("0");
   const [result, setResult] = useState<string | null>(null);
   const [unit, setUnit] = useState("");
   const [notes, setNotes] = useState("");
@@ -26,6 +40,8 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
   const [filter, setFilter] = useState<FindingCategory | "all">("all");
 
   const presets = catalog.finding_presets.filter((p) => p.category === category);
+  const labels = category === "rom" ? pairLabels(name) : null;
+  const norm = labels ? catalog.rom_norms[name] : undefined;
 
   function pickName(v: string) {
     setName(v);
@@ -41,17 +57,22 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
       category,
       name: name.trim(),
       side,
-      value_num: category === "test" ? null : Number(value.replace(",", ".")),
+      value_num: category === "test" ? null : num(value),
+      value_opposite: labels ? num(opposite) : null,
+      value_neutral: labels ? num(neutral || "0") : null,
       value_text: category === "test" ? result : null,
       unit: category === "test" ? null : unit.trim() || null,
       notes: notes.trim() || null,
       treatment_id: null,
     };
     if (category !== "test" && Number.isNaN(body.value_num)) return setError("Bitte einen Zahlenwert eingeben");
+    if (labels && (Number.isNaN(body.value_opposite) || Number.isNaN(body.value_neutral))) return setError("Bitte alle drei Werte eingeben (Neutral-Null-Methode)");
     try {
       await api(`/patients/${patientId}/findings`, { method: "POST", body });
       setLastAdded(`${body.name}${body.side !== "none" ? " " + SIDE[body.side] : ""}`);
       setValue("");
+      setOpposite("");
+      setNeutral("0");
       setResult(null);
       setNotes("");
       reload();
@@ -118,9 +139,27 @@ export default function FindingsTab({ patientId, catalog, entries, reload }: Tab
           </div>
         ) : (
           <>
-            <Field label="Messwert *">
-              <input inputMode="decimal" value={value} required onChange={(e) => setValue(e.target.value)} />
-            </Field>
+            {labels ? (
+              <div className="field wide">
+                <span className="field-label">Neutral-Null-Methode: {labels[0]} – Neutral – {labels[1]} *</span>
+                <div className="neutral-null">
+                  <input aria-label={labels[0]} inputMode="decimal" placeholder={labels[0]} value={opposite} required onChange={(e) => setOpposite(e.target.value)} />
+                  <span>–</span>
+                  <input aria-label="Neutral" inputMode="decimal" placeholder="Neutral" value={neutral} required onChange={(e) => setNeutral(e.target.value)} />
+                  <span>–</span>
+                  <input aria-label={labels[1]} inputMode="decimal" placeholder={labels[1]} value={value} required onChange={(e) => setValue(e.target.value)} />
+                </div>
+                {norm && (
+                  <span className="field-hint">
+                    Richtwert (ungeprüft, bitte mit Ihrer Quelle abgleichen): {norm[0]}-{norm[1]}-{norm[2]}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <Field label="Messwert *">
+                <input inputMode="decimal" value={value} required onChange={(e) => setValue(e.target.value)} />
+              </Field>
+            )}
             <Field label="Einheit">
               <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="z. B. °, cm, 0-5" />
             </Field>
@@ -243,6 +282,9 @@ function Correction({
   onSave: (body: FindingData & { correction_reason: string }) => Promise<void>;
 }) {
   const [value, setValue] = useState(finding.category === "test" ? (finding.value_text ?? "") : String(finding.value_num ?? ""));
+  const [opp, setOpp] = useState(String(finding.value_opposite ?? ""));
+  const [neu, setNeu] = useState(String(finding.value_neutral ?? "0"));
+  const pair = finding.value_opposite !== null;
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const isTest = finding.category === "test";
@@ -259,6 +301,8 @@ function Correction({
         notes: finding.notes,
         treatment_id: finding.treatment_id,
         value_num: isTest ? null : Number(value.replace(",", ".")),
+        value_opposite: pair ? Number(opp.replace(",", ".")) : null,
+        value_neutral: pair ? Number((neu || "0").replace(",", ".")) : null,
         value_text: isTest ? value : null,
         correction_reason: reason.trim(),
       });
@@ -277,6 +321,17 @@ function Correction({
             ))}
           </select>
         </Field>
+      ) : pair ? (
+        <div className="field wide">
+          <span className="field-label">Neue Werte (Gegenrichtung – Neutral – Hauptrichtung)</span>
+          <div className="neutral-null">
+            <input aria-label="Gegenrichtung" inputMode="decimal" value={opp} onChange={(e) => setOpp(e.target.value)} required />
+            <span>–</span>
+            <input aria-label="Neutral" inputMode="decimal" value={neu} onChange={(e) => setNeu(e.target.value)} required />
+            <span>–</span>
+            <input aria-label="Hauptrichtung" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} required />
+          </div>
+        </div>
       ) : (
         <Field label={`Neuer Wert${finding.unit ? " (" + finding.unit + ")" : ""}`}>
           <input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} required />

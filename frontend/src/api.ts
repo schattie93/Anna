@@ -84,6 +84,9 @@ export interface AnamnesisData {
   relieving_factors: string | null;
   red_flags: string[];
   red_flags_notes: string | null;
+  yellow_flags: string[];
+  social_history: string | null;
+  sleep: string | null;
   activity_sport: string | null;
   goals: string | null;
 }
@@ -116,7 +119,30 @@ export interface TreatmentData {
   home_exercises: string | null;
 }
 export type Treatment = TreatmentData &
-  MedicalMeta & { status: "draft" | "final"; finalized_at: string | null };
+  MedicalMeta & { status: "draft" | "final"; finalized_at: string | null; signed: boolean };
+
+export interface ExaminationData {
+  recorded_on: string;
+  inspection: string | null;
+  palpation: string | null;
+  function: string | null;
+  hypothesis: string | null;
+  icf_body: string | null;
+  icf_activity: string | null;
+  icf_participation: string | null;
+  notes: string | null;
+}
+export type Examination = ExaminationData & MedicalMeta;
+
+export interface Indication {
+  id: number;
+  key: string;
+  name: string;
+  max_units_per_rx: number | null;
+  orienting_total_units: number | null;
+  note: string | null;
+  active: boolean;
+}
 
 export interface AuditEntry {
   id: number;
@@ -157,7 +183,9 @@ export interface PrescriptionData {
   physician: string | null;
   diagnosis_text: string | null;
   icd10_code: string | null;
+  diagnosis_group: string | null;
   indication_key: string | null;
+  leitsymptomatik: string | null;
   measure: string;
   total_units: number;
   frequency: string | null;
@@ -213,10 +241,13 @@ export interface ExerciseData {
   default_sets: number | null;
   default_reps: number | null;
   default_hold_seconds: number | null;
+  contraindications: string | null;
 }
 export interface Exercise extends ExerciseData {
   id: number;
   archived: boolean;
+  approved: boolean;
+  approved_by: string | null;
   has_image: boolean;
 }
 
@@ -234,6 +265,7 @@ export interface PlanItem extends PlanItemData {
   id: number;
   position: number;
   has_image: boolean;
+  approved: boolean;
 }
 export type ExercisePlan = MedicalMeta & { title: string; issued_on: string; notes: string | null; items: PlanItem[] };
 
@@ -247,6 +279,8 @@ export interface FindingPreset {
 
 export interface Catalog {
   red_flags: Record<string, string>;
+  yellow_flags: Record<string, string>;
+  rom_norms: Record<string, [number, number, number]>;
   measures: string[];
   finding_presets: FindingPreset[];
   test_results: string[];
@@ -258,6 +292,8 @@ export interface FindingData {
   name: string;
   side: Side;
   value_num: number | null;
+  value_opposite: number | null;
+  value_neutral: number | null;
   value_text: string | null;
   unit: string | null;
   notes: string | null;
@@ -280,7 +316,7 @@ export interface BodyMarkData {
 }
 export type BodyMark = BodyMarkData & MedicalMeta;
 
-export type AttachmentKind = "photo" | "document" | "drawing";
+export type AttachmentKind = "photo" | "document" | "drawing" | "signature";
 export interface Attachment extends MedicalMeta {
   treatment_id: number | null;
   parent_id: number | null;

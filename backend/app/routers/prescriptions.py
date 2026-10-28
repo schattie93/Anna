@@ -2,24 +2,24 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import audit
 from ..db import get_db
-from ..deps import get_current_user, get_patient, require_medical
-from ..models import Patient, Prescription, Treatment, User
+from ..deps import get_current_user, get_patient, require_admin, require_medical
+from ..models import IndicationEntry, Patient, Prescription, Treatment, User
 from ..prescription_rules import evaluate
-from ..schemas import PrescriptionIn, PrescriptionOut, PrescriptionUpdate, RxWarning, VoidIn
+from ..schemas import IndicationIn, IndicationOut, PrescriptionIn, PrescriptionOut, PrescriptionUpdate, RxWarning, VoidIn
 from .medical import _ensure_not_voided, _get_entry, _void
 
 router = APIRouter(prefix="/api/patients/{patient_id}/prescriptions", tags=["prescriptions"], dependencies=[Depends(require_medical)])
 
 
-def rx_out(rx: Prescription, treatments: list[Treatment], today: date | None = None) -> PrescriptionOut:
+def rx_out(rx: Prescription, treatments: list[Treatment], today: date | None = None, db: Session | None = None) -> PrescriptionOut:
     out = PrescriptionOut.model_validate(rx)
-    info = evaluate(rx, treatments, today)
+    info = evaluate(rx, treatments, today, db)
     out.units_done, out.units_remaining = info["units_done"], info["units_remaining"]
     out.status, out.latest_start = info["status"], info["latest_start"]
     out.warnings = [RxWarning(**w) for w in info["warnings"]]
@@ -34,7 +34,7 @@ def patient_treatments(db: Session, patient_id: int) -> list[Treatment]:
 def list_prescriptions(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
     treatments = patient_treatments(db, patient.id)
     rows = db.scalars(select(Prescription).where(Prescription.patient_id == patient.id).order_by(Prescription.issued_on.desc(), Prescription.id.desc()))
-    return [rx_out(rx, treatments) for rx in rows]
+    return [rx_out(rx, treatments, db=db) for rx in rows]
 
 
 @router.post("", response_model=PrescriptionOut, status_code=status.HTTP_201_CREATED)
@@ -44,7 +44,7 @@ def create_prescription(data: PrescriptionIn, patient: Patient = Depends(get_pat
     db.flush()
     audit.log(db, user, "create", "prescription", rx.id, patient.id, changes=audit.snapshot(rx, list(PrescriptionIn.model_fields)))
     db.commit()
-    return rx_out(rx, patient_treatments(db, patient.id))
+    return rx_out(rx, patient_treatments(db, patient.id), db=db)
 
 
 @router.put("/{entry_id}", response_model=PrescriptionOut)
@@ -61,10 +61,48 @@ def update_prescription(
     if diff:
         audit.log(db, user, "update", "prescription", rx.id, patient.id, changes=diff, reason=data.correction_reason)
     db.commit()
-    return rx_out(rx, patient_treatments(db, patient.id))
+    return rx_out(rx, patient_treatments(db, patient.id), db=db)
 
 
 @router.post("/{entry_id}/void", response_model=PrescriptionOut)
 def void_prescription(entry_id: int, data: VoidIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     rx = _void(db, _get_entry(db, Prescription, entry_id, patient), "prescription", data.reason, user)
-    return rx_out(rx, patient_treatments(db, patient.id))
+    return rx_out(rx, patient_treatments(db, patient.id), db=db)
+
+
+# --- Heilmittelkatalog der Praxis ------------------------------------------------------
+
+catalog_router = APIRouter(prefix="/api/indications", tags=["prescriptions"], dependencies=[Depends(require_medical)])
+
+
+@catalog_router.get("", response_model=list[IndicationOut])
+def list_indications(include_inactive: bool = False, db: Session = Depends(get_db)):
+    stmt = select(IndicationEntry).order_by(IndicationEntry.key)
+    if not include_inactive:
+        stmt = stmt.where(IndicationEntry.active.is_(True))
+    return db.scalars(stmt).all()
+
+
+@catalog_router.post("", response_model=IndicationOut, status_code=status.HTTP_201_CREATED)
+def create_indication(data: IndicationIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    key = data.key.strip().upper()
+    if db.scalars(select(IndicationEntry).where(IndicationEntry.key == key)).first():
+        raise HTTPException(status.HTTP_409_CONFLICT, "Indikationsschlüssel existiert bereits")
+    entry = IndicationEntry(**{**data.model_dump(), "key": key})
+    db.add(entry)
+    db.flush()
+    audit.log(db, admin, "create", "indication", entry.id, changes=data.model_dump())
+    db.commit()
+    return entry
+
+
+@catalog_router.put("/{entry_id}", response_model=IndicationOut)
+def update_indication(entry_id: int, data: IndicationIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    entry = db.get(IndicationEntry, entry_id)
+    if not entry:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Eintrag nicht gefunden")
+    diff = audit.apply_changes(entry, {**data.model_dump(), "key": data.key.strip().upper()})
+    if diff:
+        audit.log(db, admin, "update", "indication", entry.id, changes=diff)
+    db.commit()
+    return entry

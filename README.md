@@ -5,6 +5,8 @@ Lokale Praxissoftware für die Physiotherapie: von der Patientenaufnahme über D
 
 Grundlage ist das Projektkonzept vom 28.10.2026. Alle sechs Phasen sind umgesetzt (siehe Tabelle unten). Offene Punkte stehen im Abschnitt „Vor dem Produktivbetrieb“.
 
+> ⚠️ **Fachlich nicht geprüft:** Alle physiotherapeutischen Vorlagen (Warnzeichen, Befundkatalog, Richtwerte, Maßnahmen, Beispielübungen, Prüfregeln) stammen aus allgemeinem Wissen und wurden nicht von einer Fachperson abgenommen. Bitte `docs/FACHLICHE_PRUEFUNG.md` durcharbeiten.
+
 > ⚠️ **Noch nicht für den Produktivbetrieb mit echten Patientendaten freigegeben.** Dafür fehlen die Installation auf dem Ziel-NAS, eine rechtliche Prüfung und eine unabhängige Sicherheitsprüfung (siehe unten und `docs/DATENSCHUTZ.md`). Für Entwicklung und Tests nur fiktive Daten verwenden.
 
 ## Funktionsumfang
@@ -17,6 +19,7 @@ Grundlage ist das Projektkonzept vom 28.10.2026. Alle sechs Phasen sind umgesetz
 | 4 | **Lokale Assistenz** | Diktieren (lokales Whisper), Texterkennung (Tesseract), SOAP aus Diktat und Berichtsentwurf (lokales Sprachmodell). Alles optional, KI-Texte werden nie ungeprüft übernommen |
 | 5 | **Abrechnung** | Leistungskatalog, Rechnungen für Privat-/Selbstzahler (lückenlose Nummern, Storno, Zahlungen, überfällig, PDF), **Kassenabrechnung (GKV) als Prüfliste mit CSV-Export**, Auswertungen (Behandlungen, Umsatz, Terminquoten, Dokumentationsvollständigkeit) |
 | 6 | **Betrieb & Datenschutz** | Automatische Abmeldung, Kontosperre, unveränderliches Protokoll (auch in der Datenbank erzwungen), Akten-Export (Art. 15/20), Aufbewahrung und Löschung, verschlüsselte Backups mit Wiederherstellungstest, Integritätsprüfung, Lasttest, CI |
+| 7 | **Fachliche Ergänzungen** | Leistungsnachweis (Unterschrift des Patienten je Behandlung, Prüfung in der Kassenabrechnung), Neutral-Null-Methode für Beweglichkeit, erweiterte Anamnese (zusätzliche Warnzeichen, psychosoziale Faktoren, Sozialanamnese), Erstbefund mit ICF-Einordnung, zusätzliche Assessments (PSFS, NDI, Berg u. a.), von der Praxis gepflegter Heilmittelkatalog mit Mengenprüfung, Freigabe von Übungen vor dem Druck |
 
 **Rollen:** *Administrator* (alles, Verwaltung), *Therapeut/in* (alles außer Verwaltung), *Empfang* (Stammdaten, Termine, Rechnungen, **keine** medizinischen Daten).
 

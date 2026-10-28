@@ -20,6 +20,9 @@ function blank(): AnamnesisData {
     relieving_factors: null,
     red_flags: [],
     red_flags_notes: null,
+    yellow_flags: [],
+    social_history: null,
+    sleep: null,
     activity_sport: null,
     goals: null,
   };
@@ -89,6 +92,9 @@ export function AnamnesisView({ a, catalog }: { a: Anamnesis; catalog: Catalog }
         }
       />
       <Detail label="Anmerkung Warnzeichen" value={a.red_flags_notes} />
+      <Detail label="Psychosoziale Faktoren" value={a.yellow_flags.length > 0 && a.yellow_flags.map((f) => catalog.yellow_flags[f] ?? f).join(", ")} />
+      <Detail label="Sozialanamnese" value={a.social_history} />
+      <Detail label="Schlaf" value={a.sleep} />
       <Detail label="Alltag / Sport" value={a.activity_sport} />
       <Detail label="Therapieziele" value={a.goals} />
     </dl>
@@ -155,6 +161,13 @@ function AnamnesisForm({
         <h3 className="wide">Warnzeichen (Red Flags)</h3>
         <Chips label="Zutreffendes antippen" options={catalog.red_flags} value={a.red_flags} onChange={(v) => set("red_flags", v)} tone="warn" />
         <TextArea label="Anmerkungen zu Warnzeichen" value={a.red_flags_notes} onChange={(v) => set("red_flags_notes", v)} rows={2} />
+      </section>
+
+      <section className="card form-grid">
+        <h3 className="wide">Psychosoziale Faktoren (Yellow Flags) und Alltag</h3>
+        <Chips label="Zutreffendes antippen (Hinweise auf Chronifizierungsrisiko)" options={catalog.yellow_flags} value={a.yellow_flags} onChange={(v) => set("yellow_flags", v)} />
+        <TextArea label="Sozialanamnese (Beruf, Familie, Wohnsituation, Belastungen)" value={a.social_history} onChange={(v) => set("social_history", v)} rows={2} />
+        <TextArea label="Schlaf" value={a.sleep} onChange={(v) => set("sleep", v)} rows={2} />
       </section>
 
       <section className="card form-grid">

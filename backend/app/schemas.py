@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, field_validator, model_validator
 
-from .catalog import RED_FLAGS, TEST_RESULTS
+from .catalog import RED_FLAGS, TEST_RESULTS, YELLOW_FLAGS
 from .models import (
     AppointmentStatus,
     AttachmentKind,
@@ -178,6 +178,9 @@ class AnamnesisBase(BaseModel):
     relieving_factors: str | None = None
     red_flags: list[str] = []
     red_flags_notes: str | None = None
+    yellow_flags: list[str] = []
+    social_history: str | None = None
+    sleep: str | None = None
     activity_sport: str | None = None
     goals: str | None = None
 
@@ -187,6 +190,14 @@ class AnamnesisBase(BaseModel):
         unknown = set(v) - RED_FLAGS.keys()
         if unknown:
             raise ValueError(f"Unbekannte Warnzeichen: {', '.join(sorted(unknown))}")
+        return sorted(set(v))
+
+    @field_validator("yellow_flags")
+    @classmethod
+    def known_yellow_flags(cls, v: list[str]) -> list[str]:
+        unknown = set(v) - YELLOW_FLAGS.keys()
+        if unknown:
+            raise ValueError(f"Unbekannte psychosoziale Faktoren: {', '.join(sorted(unknown))}")
         return sorted(set(v))
 
 
@@ -266,6 +277,7 @@ class TreatmentUpdate(TreatmentBase):
 class TreatmentOut(MedicalOut, TreatmentBase):
     status: TreatmentStatus
     finalized_at: datetime | None
+    signed: bool = False  # Leistungsnachweis: Patient hat unterschrieben
 
 
 class OpenTreatment(ORM):
@@ -317,6 +329,8 @@ class FindingPreset(BaseModel):
 
 class Catalog(BaseModel):
     red_flags: dict[str, str]
+    yellow_flags: dict[str, str]
+    rom_norms: dict[str, tuple[int, int, int]]
     measures: list[str]
     finding_presets: list[FindingPreset]
     test_results: list[str]
@@ -331,6 +345,8 @@ class FindingBase(BaseModel):
     name: NonEmpty
     side: Side = Side.none
     value_num: float | None = None
+    value_opposite: float | None = None  # Neutral-Null-Methode: Gegenrichtung
+    value_neutral: float | None = None  # Neutral-Null-Methode: Mittelwert
     value_text: str | None = None
     unit: str | None = None
     notes: str | None = None
@@ -341,11 +357,15 @@ class FindingBase(BaseModel):
         if self.category == FindingCategory.test:
             if self.value_text not in TEST_RESULTS:
                 raise ValueError("Testergebnis muss positiv, negativ oder fraglich sein")
-            self.value_num = None
+            self.value_num = self.value_opposite = self.value_neutral = None
         else:
             if self.value_num is None:
                 raise ValueError("Messwert fehlt")
             self.value_text = None
+            if self.category != FindingCategory.rom:
+                self.value_opposite = self.value_neutral = None
+            elif self.value_opposite is None and self.value_neutral is not None:
+                raise ValueError("Neutralwert ohne Gegenrichtung")
         return self
 
 
@@ -467,7 +487,9 @@ class PrescriptionBase(BaseModel):
     physician: str | None = None
     diagnosis_text: str | None = None
     icd10_code: str | None = None
+    diagnosis_group: str | None = None
     indication_key: str | None = None
+    leitsymptomatik: str | None = None
     measure: NonEmpty
     total_units: Annotated[int, Field(ge=1, le=60)]
     frequency: str | None = None
@@ -587,6 +609,7 @@ class ExerciseBase(BaseModel):
     default_sets: Annotated[int, Field(ge=1, le=20)] | None = None
     default_reps: Annotated[int, Field(ge=1, le=200)] | None = None
     default_hold_seconds: Annotated[int, Field(ge=1, le=600)] | None = None
+    contraindications: str | None = None
 
 
 class ExerciseIn(ExerciseBase):
@@ -600,6 +623,8 @@ class ExerciseUpdate(ExerciseBase):
 class ExerciseOut(ORM, ExerciseBase):
     id: int
     archived: bool
+    approved: bool = True
+    approved_by: str | None = None
     has_image: bool = False
 
 
@@ -618,6 +643,7 @@ class PlanItemOut(ORM, PlanItemBase):
     id: int
     position: int
     has_image: bool = False
+    approved: bool = True
 
 
 class ExercisePlanIn(BaseModel):
@@ -790,3 +816,46 @@ class GkvRow(BaseModel):
     treatment_dates: list[date]
     problems: list[str]
     ready: bool
+
+
+# --- Erstbefund --------------------------------------------------------------------
+
+
+class ExaminationBase(BaseModel):
+    recorded_on: date
+    inspection: str | None = None
+    palpation: str | None = None
+    function: str | None = None
+    hypothesis: str | None = None
+    icf_body: str | None = None
+    icf_activity: str | None = None
+    icf_participation: str | None = None
+    notes: str | None = None
+
+
+class ExaminationIn(ExaminationBase):
+    pass
+
+
+class ExaminationUpdate(ExaminationBase):
+    correction_reason: NonEmpty
+
+
+class ExaminationOut(MedicalOut, ExaminationBase):
+    pass
+
+
+# --- Heilmittelkatalog (von der Praxis gepflegt) ------------------------------------------
+
+
+class IndicationIn(BaseModel):
+    key: NonEmpty
+    name: NonEmpty
+    max_units_per_rx: Annotated[int, Field(ge=1, le=100)] | None = None
+    orienting_total_units: Annotated[int, Field(ge=1, le=500)] | None = None
+    note: str | None = None
+    active: bool = True
+
+
+class IndicationOut(ORM, IndicationIn):
+    id: int

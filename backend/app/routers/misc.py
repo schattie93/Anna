@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from ..catalog import FINDING_PRESETS, MEASURES, RED_FLAGS, TEST_RESULTS
+from ..catalog import FINDING_PRESETS, MEASURES, RED_FLAGS, ROM_NORMS, TEST_RESULTS, YELLOW_FLAGS
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import Appointment, AppointmentStatus, AuditEntry, FollowUp, Patient, Prescription, Role, Treatment, TreatmentStatus, User
@@ -19,6 +19,8 @@ router = APIRouter(prefix="/api", tags=["misc"])
 def catalog(_: User = Depends(get_current_user)):
     return Catalog(
         red_flags=RED_FLAGS,
+        yellow_flags=YELLOW_FLAGS,
+        rom_norms=ROM_NORMS,
         measures=MEASURES,
         finding_presets=[FindingPreset(category=c, name=n, unit=u) for c, n, u in FINDING_PRESETS],
         test_results=TEST_RESULTS,
@@ -69,7 +71,7 @@ def dashboard(db: Session = Depends(get_db), user: User = Depends(get_current_us
     if user.role != Role.reception:
         for rx in db.scalars(select(Prescription).options(selectinload(Prescription.created_by)).where(Prescription.voided.is_(False))):
             treatments = list(db.scalars(select(Treatment).where(Treatment.patient_id == rx.patient_id)))
-            info = evaluate(rx, treatments, today)
+            info = evaluate(rx, treatments, today, db)
             if info["status"] == "open" and info["warnings"]:
                 patient = db.get(Patient, rx.patient_id)
                 attention.append(

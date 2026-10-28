@@ -1,4 +1,7 @@
-"""Mitgelieferte Beispielübungen (eigene Texte, ohne Bilder). In der Bibliothek frei änderbar und ergänzbar."""
+"""Mitgelieferte Beispielübungen (eigene Texte, ohne Bilder).
+
+ACHTUNG: Diese Texte sind fachlich NICHT geprüft. Sie werden als \"nicht freigegeben\" angelegt und lassen sich erst nach der
+Freigabe durch eine Fachperson in Übungsplänen drucken. Kontraindikationen sind nicht hinterlegt und müssen ergänzt werden."""
 
 # (Titel, Region, Beschreibung, Anleitung, Sätze, Wiederholungen, Halten in Sekunden)
 DEFAULT_EXERCISES: list[tuple[str, str, str, str, int | None, int | None, int | None]] = [
@@ -52,6 +55,4 @@ DEFAULT_EXERCISES: list[tuple[str, str, str, str, int | None, int | None, int | 
      "In Rückenlage eine Hand auf den Bauch legen. Durch die Nase einatmen, sodass sich die Bauchdecke hebt, und langsam durch die Lippenbremse ausatmen.", 1, 10, None),
     ("Türrahmen-Dehnung Brust", "Schulter/BWS", "Öffnet den Brustkorb, wirkt gegen Rundrücken.",
      "Unterarme im Türrahmen auf Schulterhöhe abstützen, einen kleinen Schritt nach vorn gehen, bis es vorn an der Brust zieht.", 2, 3, 30),
-    ("Gehen mit Stöcken – Gangschule", "Gang", "Übung zur Sicherheit beim Gehen.",
-     "Aufrecht gehen, Blick nach vorn, abwechselnd Ferse – Fußmitte – Zehen abrollen. Arme schwingen locker mit.", 1, None, None),
 ]

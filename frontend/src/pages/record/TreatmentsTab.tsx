@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { api, type Catalog, type Diagnosis, type Prescription, type Treatment, type TreatmentData } from "../../api";
+import { api, apiUpload, type Catalog, type Diagnosis, type Prescription, type Treatment, type TreatmentData } from "../../api";
+import DrawingCanvas from "../../components/DrawingCanvas";
+import Modal from "../../components/Modal";
 import { Chips, ErrorBox, Field, PainScale, ReasonDialog, TextArea, TextField, useForm } from "../../components/fields";
 import SoapAssist from "../../components/SoapAssist";
 import { formatDate, formatDateTime, today } from "../../labels";
@@ -32,6 +34,8 @@ export default function TreatmentsTab({
   reload,
 }: TabProps<Treatment> & { diagnoses: Diagnosis[]; prescriptions: Prescription[] }) {
   const [editing, setEditing] = useState<Treatment | "new" | null>(null);
+  const [signing, setSigning] = useState<Treatment | null>(null);
+  const [signError, setSignError] = useState<string | null>(null);
   const { showVoided, toggle } = useVoidedToggle();
   const previous = entries.find((t) => !t.voided);
 
@@ -73,9 +77,12 @@ export default function TreatmentsTab({
             t.status === "draft" ? (
               <span className="badge warn">Entwurf</span>
             ) : (
-              <span className="badge ok" title={t.finalized_at ? `abgeschlossen ${formatDateTime(t.finalized_at)}` : ""}>
-                abgeschlossen
-              </span>
+              <>
+                <span className="badge ok" title={t.finalized_at ? `abgeschlossen ${formatDateTime(t.finalized_at)}` : ""}>
+                  abgeschlossen
+                </span>
+                {t.signed ? <span className="badge ok">✓ unterschrieben</span> : <span className="badge warn">Unterschrift fehlt</span>}
+              </>
             )
           }
           voidPath={`/patients/${patientId}/treatments/${t.id}/void`}
@@ -97,9 +104,41 @@ export default function TreatmentsTab({
             <Detail label="P – Plan" value={t.plan} />
             <Detail label="Hausübungen" value={t.home_exercises} />
           </dl>
+          {!t.voided && !t.signed && t.status === "final" && (
+            <p>
+              <button className="btn" onClick={() => setSigning(t)}>
+                ✍ Unterschrift Patient (Leistungsnachweis)
+              </button>
+            </p>
+          )}
         </EntryCard>
       ))}
       {entries.some((t) => t.voided) && toggle}
+      {signing && (
+        <Modal title={`Leistungsnachweis ${formatDate(signing.treated_on)}`} onClose={() => setSigning(null)} wide>
+          <p className="muted">Der Patient bestätigt mit seiner Unterschrift, dass die Behandlung erbracht wurde.</p>
+          {signError && <p className="error">{signError}</p>}
+          <div className="sig-pad">
+            <DrawingCanvas
+              size={{ w: 900, h: 300 }}
+              label="Unterschrift speichern"
+              onCancel={() => setSigning(null)}
+              onSave={async (png) => {
+                setSignError(null);
+                try {
+                  const form = new FormData();
+                  form.set("file", new File([png], "unterschrift.png", { type: "image/png" }));
+                  await apiUpload(`/patients/${patientId}/treatments/${signing.id}/signature`, form);
+                  setSigning(null);
+                  reload();
+                } catch (e) {
+                  setSignError((e as Error).message);
+                }
+              }}
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

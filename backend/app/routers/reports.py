@@ -34,6 +34,8 @@ GOAL = {GoalStatus.open: "offen", GoalStatus.achieved: "erreicht", GoalStatus.dr
 def _finding_value(f: Finding) -> str:
     if f.category == FindingCategory.test:
         return f.value_text or "–"
+    if f.value_opposite is not None:  # Neutral-Null-Methode
+        return f"{pdf.de_number(f.value_opposite)}-{pdf.de_number(f.value_neutral or 0)}-{pdf.de_number(f.value_num)} {f.unit or ''}".strip()
     return f"{pdf.de_number(f.value_num)} {f.unit or ''}".strip()
 
 

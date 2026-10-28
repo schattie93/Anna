@@ -7,11 +7,38 @@ Die Fristen sind in config.py einstellbar.
 from datetime import date, timedelta
 
 from .config import get_settings
-from .models import Prescription, Treatment, TreatmentStatus
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .models import IndicationEntry, Prescription, Treatment, TreatmentStatus
 from .timeutil import local_today
 
 
-def evaluate(rx: Prescription, treatments: list[Treatment], today: date | None = None) -> dict:
+def catalog_warnings(db: Session, rx: Prescription) -> list[dict[str, str]]:
+    """Mengenprüfung anhand des von der Praxis gepflegten Heilmittelkatalogs."""
+    if not rx.indication_key:
+        return []
+    key = rx.indication_key.strip().upper()
+    entry = db.scalars(select(IndicationEntry).where(IndicationEntry.key == key, IndicationEntry.active.is_(True))).first()
+    if not entry:
+        return [{"level": "info", "text": f"Indikationsschlüssel {key} ist im Heilmittelkatalog der Praxis nicht gepflegt – Mengenprüfung nicht möglich."}]
+    out: list[dict[str, str]] = []
+    if entry.max_units_per_rx and rx.total_units > entry.max_units_per_rx:
+        out.append({"level": "warn", "text": f"Verordnete Menge ({rx.total_units}) überschreitet die Höchstmenge je Verordnung ({entry.max_units_per_rx}) für {key}."})
+    if entry.orienting_total_units:
+        same = db.scalars(
+            select(Prescription).where(
+                Prescription.patient_id == rx.patient_id, Prescription.voided.is_(False),
+                Prescription.issued_on <= rx.issued_on, Prescription.indication_key.ilike(key),
+            )
+        ).all()
+        total = sum(r.total_units for r in same)
+        if total > entry.orienting_total_units:
+            out.append({"level": "info", "text": f"Gesamtmenge für {key} ({total}) liegt über der orientierenden Behandlungsmenge ({entry.orienting_total_units}) – Verordnung außerhalb des Regelfalls: Begründung prüfen."})
+    return out
+
+
+def evaluate(rx: Prescription, treatments: list[Treatment], today: date | None = None, db: Session | None = None) -> dict:
     cfg = get_settings()
     today = today or local_today()
     mine = [t for t in treatments if t.prescription_id == rx.id and not t.voided]
@@ -41,6 +68,9 @@ def evaluate(rx: Prescription, treatments: list[Treatment], today: date | None =
         warnings.append({"level": "info", "text": f"Noch {remaining} Einheit(en) – Folgeverordnung rechtzeitig anfordern."})
     if status == "open" and not dates and (latest_start - today).days <= 7:
         warnings.append({"level": "info", "text": f"Behandlungsbeginn spätestens bis {latest_start:%d.%m.%Y}."})
+
+    if db is not None:
+        warnings.extend(catalog_warnings(db, rx))
 
     return {
         "units_done": done,

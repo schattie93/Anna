@@ -17,7 +17,11 @@ export default function DrawingCanvas({
   onSave,
   onCancel,
   saving,
+  size: fixedSize,
+  label,
 }: {
+  size?: { w: number; h: number };
+  label?: string;
   background?: string;
   onSave: (png: Blob) => void;
   onCancel: () => void;
@@ -30,7 +34,7 @@ export default function DrawingCanvas({
   const penSeen = useRef(false);
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(3);
-  const [size, setSize] = useState({ w: 1200, h: 800 });
+  const [size, setSize] = useState(fixedSize ?? { w: 1200, h: 800 });
   const [count, setCount] = useState(0);
 
   const redraw = useCallback(() => {
@@ -161,7 +165,7 @@ export default function DrawingCanvas({
           Abbrechen
         </button>
         <button type="button" className="btn primary big" onClick={save} disabled={saving || (count === 0 && !background)}>
-          Speichern
+          {label ?? "Speichern"}
         </button>
       </div>
     </div>

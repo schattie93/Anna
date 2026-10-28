@@ -133,8 +133,13 @@ def test_gkv_check_and_csv(client, base, patient):
     assert rows[0]["ready"] is False and "Indikationsschlüssel fehlt" in rows[0]["problems"] and "Keine abgeschlossene Behandlung zugeordnet" in rows[0]["problems"]
 
     client.put(f"{base}/prescriptions/{rx['id']}", json={"issued_on": date.today().isoformat(), "measure": "Krankengymnastik", "total_units": 2, "physician": "Dr. Fiktiv", "icd10_code": "M54.5", "indication_key": "WS1"})
-    for d in (1, 0):
-        final_treatment(client, base, (date.today() - timedelta(days=d)).isoformat(), prescription_id=rx["id"])
+    treatments = [final_treatment(client, base, (date.today() - timedelta(days=d)).isoformat(), prescription_id=rx["id"]) for d in (1, 0)]
+    rows = client.get("/api/billing/gkv").json()
+    assert rows[0]["ready"] is False and any("Unterschrift" in p for p in rows[0]["problems"])  # Leistungsnachweis fehlt
+    from tests.test_clinical import sign
+
+    for t in treatments:
+        sign(client, base, t["id"])
     rows = client.get("/api/billing/gkv").json()
     assert rows[0]["ready"] is True and rows[0]["units_done"] == 2
 

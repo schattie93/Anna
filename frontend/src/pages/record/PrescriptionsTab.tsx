@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { api, type Prescription, type PrescriptionData } from "../../api";
+import { api, type Indication, type Prescription, type PrescriptionData } from "../../api";
+import { useApi } from "../../hooks";
 import { Check, ErrorBox, Field, TextArea, TextField, useForm } from "../../components/fields";
 import { RX_STATUS, formatDate, today } from "../../labels";
 import { Detail, EntryCard, TabHead, useVoidedToggle, type TabProps } from "./common";
@@ -65,7 +66,8 @@ export default function PrescriptionsTab({ patientId, entries, reload, defaultPh
           <dl className="details">
             <Detail label="Verordner/in" value={r.physician} />
             <Detail label="Diagnose" value={[r.icd10_code, r.diagnosis_text].filter(Boolean).join(" – ")} />
-            <Detail label="Indikationsschlüssel" value={r.indication_key} />
+            <Detail label="Diagnosegruppe" value={r.diagnosis_group} />
+            <Detail label="Indikationsschlüssel" value={[r.indication_key, r.leitsymptomatik && `Leitsymptomatik ${r.leitsymptomatik}`].filter(Boolean).join(" · ")} />
             <Detail label="Frequenz" value={r.frequency} />
             <Detail label="Beginn spätestens" value={r.latest_start && formatDate(r.latest_start)} />
             <Detail label="Notizen" value={r.notes} />
@@ -83,7 +85,9 @@ function RxForm({ patientId, entry, defaultPhysician, onDone, onCancel }: { pati
     physician: defaultPhysician,
     diagnosis_text: null,
     icd10_code: null,
+    diagnosis_group: null,
     indication_key: null,
+    leitsymptomatik: null,
     measure: "",
     total_units: 6,
     frequency: null,
@@ -93,6 +97,8 @@ function RxForm({ patientId, entry, defaultPhysician, onDone, onCancel }: { pati
   };
   const [r, set] = useForm<PrescriptionData>(initial);
   const [error, setError] = useState<string | null>(null);
+  const catalog = useApi<Indication[]>("/indications").data ?? [];
+  const known = catalog.find((c) => c.key === (r.indication_key ?? "").trim().toUpperCase());
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -127,7 +133,18 @@ function RxForm({ patientId, entry, defaultPhysician, onDone, onCancel }: { pati
           required
         />
         <TextField label="Frequenz" value={r.frequency} onChange={(v) => set("frequency", v)} placeholder="z. B. 2x pro Woche" />
-        <TextField label="Indikationsschlüssel" value={r.indication_key} onChange={(v) => set("indication_key", v)} placeholder="z. B. WS1" />
+        <TextField label="Diagnosegruppe" value={r.diagnosis_group} onChange={(v) => set("diagnosis_group", v)} placeholder="z. B. WS" />
+        <Field label="Indikationsschlüssel" hint={known ? `${known.name}${known.max_units_per_rx ? ` · Höchstmenge je Verordnung ${known.max_units_per_rx}` : ""}` : catalog.length ? "nicht im Katalog der Praxis" : "Katalog unter Einstellungen pflegen"}>
+          <input list="rx-indications" value={r.indication_key ?? ""} onChange={(e) => set("indication_key", e.target.value || null)} placeholder="z. B. WS1" />
+          <datalist id="rx-indications">
+            {catalog.map((c) => (
+              <option key={c.id} value={c.key}>
+                {c.name}
+              </option>
+            ))}
+          </datalist>
+        </Field>
+        <TextField label="Leitsymptomatik" value={r.leitsymptomatik} onChange={(v) => set("leitsymptomatik", v)} placeholder="z. B. a, b, c, x" />
         <TextField label="ICD-10" value={r.icd10_code} onChange={(v) => set("icd10_code", v)} />
         <TextField label="Diagnose laut Verordnung" value={r.diagnosis_text} onChange={(v) => set("diagnosis_text", v)} wide />
         <div className="wide checks">

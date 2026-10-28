@@ -1,6 +1,6 @@
 import { Link, NavLink, useParams } from "react-router-dom";
 import { useState } from "react";
-import type { Anamnesis, Attachment, BodyMark, Diagnosis, ExercisePlan, Finding, Goal, Patient, Prescription, Treatment } from "../api";
+import type { Anamnesis, Attachment, BodyMark, Diagnosis, Examination, ExercisePlan, Finding, Goal, Patient, Prescription, Treatment } from "../api";
 import { useUser } from "../auth";
 import { ErrorBox } from "../components/fields";
 import { useApi, useCatalog } from "../hooks";
@@ -8,6 +8,7 @@ import { INSURANCE, SIDE, age, formatDate } from "../labels";
 import AnamnesisTab from "./record/AnamnesisTab";
 import AtlasTab from "./record/AtlasTab";
 import DiagnosesTab from "./record/DiagnosesTab";
+import ExaminationTab from "./record/ExaminationTab";
 import ExercisesTab from "./record/ExercisesTab";
 import FilesTab from "./record/FilesTab";
 import FindingsTab from "./record/FindingsTab";
@@ -23,7 +24,8 @@ const TABS = [
   ["", "Übersicht"],
   ["anamnese", "Anamnese"],
   ["diagnosen", "Diagnosen"],
-  ["befunde", "Befunde"],
+  ["erstbefund", "Erstbefund"],
+  ["befunde", "Messwerte & Tests"],
   ["koerperatlas", "Körperatlas"],
   ["verordnungen", "Verordnungen"],
   ["behandlungen", "Behandlungen"],
@@ -45,6 +47,7 @@ export default function PatientRecordPage() {
   const treatments = useApi<Treatment[]>(base && `${base}/treatments`);
   const findings = useApi<Finding[]>(base && `${base}/findings`);
   const goals = useApi<Goal[]>(base && `${base}/goals`);
+  const examinations = useApi<Examination[]>(base && tab === "erstbefund" ? `${base}/examinations` : null);
   const prescriptions = useApi<Prescription[]>(base && `${base}/prescriptions`);
   const plans = useApi<ExercisePlan[]>(base && tab === "uebungen" ? `${base}/exercise-plans` : null);
   const marks = useApi<BodyMark[]>(base && tab === "koerperatlas" ? `${base}/body-marks` : null);
@@ -120,6 +123,7 @@ export default function PatientRecordPage() {
       )}
       {medical && tab === "anamnese" && <AnamnesisTab {...ctx} entries={anamneses.data!} reload={anamneses.reload} />}
       {medical && tab === "diagnosen" && <DiagnosesTab {...ctx} entries={diagnoses.data!} reload={diagnoses.reload} />}
+      {medical && tab === "erstbefund" && <ExaminationTab patientId={p.id} entries={examinations.data ?? []} reload={examinations.reload} />}
       {medical && tab === "befunde" && <FindingsTab {...ctx} entries={findings.data!} reload={findings.reload} />}
       {medical && tab === "koerperatlas" && <AtlasTab patientId={p.id} entries={marks.data ?? []} reload={marks.reload} />}
       {medical && tab === "behandlungen" && <TreatmentsTab {...ctx} entries={treatments.data!} diagnoses={diagnoses.data!} prescriptions={prescriptions.data!} reload={() => { treatments.reload(); prescriptions.reload(); }} />}

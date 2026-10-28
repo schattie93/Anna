@@ -25,6 +25,8 @@ export const ACTION: Record<string, string> = {
   void: "storniert",
 };
 export const ENTITY: Record<string, string> = {
+  examination: "Erstbefund",
+  indication: "Heilmittelkatalog",
   invoice: "Rechnung",
   payment: "Zahlung",
   service: "Leistung",
@@ -88,6 +90,10 @@ export const FIELD: Record<string, string> = {
   issued_on: "Ausgestellt am", physician: "Verordner/in", diagnosis_text: "Diagnose (Text)", indication_key: "Indikationsschlüssel",
   measure: "Heilmittel", total_units: "Einheiten", frequency: "Frequenz", urgent: "Dringlich", home_visit: "Hausbesuch",
   prescription_id: "Verordnung", start: "Beginn", end: "Ende", title: "Titel",
+  yellow_flags: "Psychosoziale Faktoren", social_history: "Sozialanamnese", sleep: "Schlaf", value_opposite: "Gegenrichtung", value_neutral: "Neutralwert",
+  inspection: "Inspektion", palpation: "Palpation", function: "Funktion", hypothesis: "Hypothese", icf_body: "ICF Körperfunktion/-struktur",
+  icf_activity: "ICF Aktivität", icf_participation: "ICF Teilhabe", diagnosis_group: "Diagnosegruppe", leitsymptomatik: "Leitsymptomatik",
+  contraindications: "Kontraindikationen", approved: "Freigegeben", max_units_per_rx: "Höchstmenge je Verordnung", orienting_total_units: "Orientierende Menge",
   category: "Kategorie", name: "Bezeichnung", value_num: "Messwert", value_text: "Ergebnis", unit: "Einheit",
   view: "Ansicht", x: "Position X", y: "Position Y", kind: "Art", intensity: "Intensität", note: "Notiz",
   caption: "Beschriftung", taken_on: "Aufnahmedatum", ocr_text: "Erkannter Text", target_date: "Zieldatum",

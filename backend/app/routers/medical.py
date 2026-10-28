@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from .. import audit
 from ..db import get_db
 from ..deps import get_current_user, get_patient, require_medical
-from ..models import Anamnesis, Diagnosis, Patient, Prescription, Treatment, TreatmentStatus, User
+from ..models import Anamnesis, Attachment, AttachmentKind, Diagnosis, Examination, Patient, Prescription, Treatment, TreatmentStatus, User
 from ..schemas import (
     AnamnesisIn,
     AnamnesisOut,
@@ -21,6 +21,9 @@ from ..schemas import (
     DiagnosisIn,
     DiagnosisOut,
     DiagnosisUpdate,
+    ExaminationIn,
+    ExaminationOut,
+    ExaminationUpdate,
     TreatmentIn,
     TreatmentOut,
     TreatmentUpdate,
@@ -175,9 +178,27 @@ def _check_prescription(db: Session, patient: Patient, prescription_id: int | No
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Verordnung gehört nicht zu diesem Patienten")
 
 
+def _signed_ids(db: Session, patient_id: int) -> set[int]:
+    return set(
+        db.scalars(
+            select(Attachment.treatment_id).where(
+                Attachment.patient_id == patient_id, Attachment.kind == AttachmentKind.signature,
+                Attachment.voided.is_(False), Attachment.treatment_id.is_not(None),
+            )
+        )
+    )
+
+
+def _treatment_out(db: Session, t: Treatment, signed: set[int] | None = None) -> TreatmentOut:
+    out = TreatmentOut.model_validate(t)
+    out.signed = t.id in (signed if signed is not None else _signed_ids(db, t.patient_id))
+    return out
+
+
 @router.get("/treatments", response_model=list[TreatmentOut])
 def list_treatments(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
-    return _list(db, Treatment, patient, Treatment.treated_on.desc(), Treatment.id.desc())
+    signed = _signed_ids(db, patient.id)
+    return [_treatment_out(db, t, signed) for t in _list(db, Treatment, patient, Treatment.treated_on.desc(), Treatment.id.desc())]
 
 
 @router.post("/treatments", response_model=TreatmentOut, status_code=status.HTTP_201_CREATED)
@@ -195,7 +216,7 @@ def create_treatment(
     changes = audit.snapshot(entry, [*TreatmentIn.model_fields.keys() - {"finalize"}, "status"])
     audit.log(db, user, "create", "treatment", entry.id, patient.id, changes=changes)
     db.commit()
-    return entry
+    return _treatment_out(db, entry)
 
 
 @router.put("/treatments/{entry_id}", response_model=TreatmentOut)
@@ -224,11 +245,55 @@ def update_treatment(
         action = "correct" if was_final else "update"
         audit.log(db, user, action, "treatment", entry.id, patient.id, changes=diff, reason=reason)
     db.commit()
-    return entry
+    return _treatment_out(db, entry)
 
 
 @router.post("/treatments/{entry_id}/void", response_model=TreatmentOut)
 def void_treatment(
     entry_id: int, data: VoidIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    return _void(db, _get_entry(db, Treatment, entry_id, patient), "treatment", data.reason, user)
+    return _treatment_out(db, _void(db, _get_entry(db, Treatment, entry_id, patient), "treatment", data.reason, user))
+
+
+# --- Erstbefund / Untersuchung -------------------------------------------------------
+
+
+@router.get("/examinations", response_model=list[ExaminationOut])
+def list_examinations(patient: Patient = Depends(get_patient), db: Session = Depends(get_db)):
+    return _list(db, Examination, patient, Examination.recorded_on.desc(), Examination.id.desc())
+
+
+@router.post("/examinations", response_model=ExaminationOut, status_code=status.HTTP_201_CREATED)
+def create_examination(
+    data: ExaminationIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    entry = Examination(**data.model_dump(), patient_id=patient.id, created_by_id=user.id)
+    db.add(entry)
+    db.flush()
+    audit.log(db, user, "create", "examination", entry.id, patient.id, changes=audit.snapshot(entry, list(ExaminationIn.model_fields)))
+    db.commit()
+    return entry
+
+
+@router.put("/examinations/{entry_id}", response_model=ExaminationOut)
+def update_examination(
+    entry_id: int,
+    data: ExaminationUpdate,
+    patient: Patient = Depends(get_patient),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    entry = _get_entry(db, Examination, entry_id, patient)
+    _ensure_not_voided(entry)
+    diff = audit.apply_changes(entry, data.model_dump(exclude={"correction_reason"}))
+    if diff:
+        audit.log(db, user, "correct", "examination", entry.id, patient.id, changes=diff, reason=data.correction_reason)
+    db.commit()
+    return entry
+
+
+@router.post("/examinations/{entry_id}/void", response_model=ExaminationOut)
+def void_examination(
+    entry_id: int, data: VoidIn, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    return _void(db, _get_entry(db, Examination, entry_id, patient), "examination", data.reason, user)

@@ -1322,3 +1322,18 @@ code {
     padding-bottom: 0.35rem;
   }
 }
+
+/* --- Fachliche Ergänzungen --------------------------------------------------- */
+
+.neutral-null {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 460px;
+}
+.neutral-null input {
+  text-align: center;
+}
+.sig-pad {
+  max-width: 640px;
+}

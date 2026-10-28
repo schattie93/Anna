@@ -6,7 +6,7 @@ import { useAssistStatus } from "../../hooks";
 import Modal from "../../components/Modal";
 import { formatDate, today } from "../../labels";
 
-const KIND_LABEL: Record<AttachmentKind, string> = { photo: "Foto", document: "Dokument", drawing: "Zeichnung" };
+const KIND_LABEL: Record<AttachmentKind, string> = { photo: "Foto", document: "Dokument", drawing: "Zeichnung", signature: "Unterschrift" };
 
 const fileUrl = (patientId: number, a: Attachment, thumb = false) => `/api/patients/${patientId}/attachments/${a.id}/${thumb ? "thumb" : "file"}`;
 
@@ -163,7 +163,7 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
       <ErrorBox error={error} />
 
       <div className="chips">
-        {(["all", "photo", "document", "drawing"] as const).map((k) => (
+        {(["all", "photo", "document", "drawing", "signature"] as const).map((k) => (
           <button key={k} type="button" className={filter === k ? "chip on" : "chip"} onClick={() => setFilter(k)}>
             {k === "all" ? "Alle" : KIND_LABEL[k]}
           </button>

@@ -120,6 +120,8 @@ def report_context(db: Session, patient: Patient) -> str:
     for (name, side), items in series.items():
         if len(items) >= 2:
             def v(f: Finding) -> str:
+                if f.value_opposite is not None:
+                    return f"{f.value_opposite:g}-{(f.value_neutral or 0):g}-{f.value_num:g}{' ' + f.unit if f.unit else ''} (Neutral-Null)"
                 return f.value_text or f"{f.value_num:g}{' ' + f.unit if f.unit else ''}"
             lines.append(f"Befund {name}{'' if side == 'none' else ' ' + side}: {v(items[0])} -> {v(items[-1])}")
     goals = db.scalars(select(TherapyGoal).where(TherapyGoal.patient_id == patient.id, TherapyGoal.voided.is_(False))).all()

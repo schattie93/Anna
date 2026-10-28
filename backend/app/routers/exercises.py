@@ -43,7 +43,7 @@ def list_exercises(q: str = "", region: str | None = None, include_archived: boo
 
 @library.post("", response_model=ExerciseOut, status_code=status.HTTP_201_CREATED)
 def create_exercise(data: ExerciseIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    e = Exercise(**data.model_dump())
+    e = Exercise(**data.model_dump(), approved=True, approved_by=user.full_name)  # wer die Übung anlegt, steht dafür ein
     db.add(e)
     db.flush()
     audit.log(db, user, "create", "exercise", e.id, changes={"title": e.title})
@@ -59,7 +59,7 @@ def seed_defaults(db: Session = Depends(get_db), admin: User = Depends(require_a
     for title, region, description, instructions, sets, reps, hold in DEFAULT_EXERCISES:
         if title in existing:
             continue
-        e = Exercise(title=title, region=region, description=description, instructions=instructions, default_sets=sets, default_reps=reps, default_hold_seconds=hold)
+        e = Exercise(title=title, region=region, description=description, instructions=instructions, default_sets=sets, default_reps=reps, default_hold_seconds=hold, approved=False)
         db.add(e)
         added.append(e)
     db.flush()
@@ -73,6 +73,16 @@ def _exercise(db: Session, exercise_id: int) -> Exercise:
     if not e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Übung nicht gefunden")
     return e
+
+
+@library.post("/{exercise_id}/approve", response_model=ExerciseOut)
+def approve_exercise(exercise_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Fachliche Freigabe: erst freigegebene Übungen werden in Übungsplänen gedruckt."""
+    e = _exercise(db, exercise_id)
+    e.approved, e.approved_by = True, user.full_name
+    audit.log(db, user, "update", "exercise", e.id, changes={"approved": {"old": False, "new": True}})
+    db.commit()
+    return exercise_out(e)
 
 
 @library.put("/{exercise_id}", response_model=ExerciseOut)
@@ -114,6 +124,7 @@ def plan_out(p: ExercisePlan) -> ExercisePlanOut:
     out = ExercisePlanOut.model_validate(p)
     for item_out, item in zip(out.items, p.items):
         item_out.has_image = bool(item.exercise and item.exercise.image_path)
+        item_out.approved = item.exercise.approved if item.exercise else True
     return out
 
 
@@ -180,6 +191,12 @@ def void_plan(plan_id: int, data: VoidIn, patient: Patient = Depends(get_patient
 @plans.get("/{plan_id}/pdf")
 def plan_pdf(plan_id: int, patient: Patient = Depends(get_patient), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     plan = _get_plan(db, plan_id, patient)
+    unapproved = [i.title for i in plan.items if i.exercise and not i.exercise.approved]
+    if unapproved:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Noch nicht fachlich freigegeben: " + ", ".join(unapproved) + ". Bitte die Übungen in der Bibliothek prüfen und freigeben.",
+        )
     practice = get_practice(db)
     story = pdf.letterhead(practice)
     story.append(pdf.Paragraph(pdf.escape(plan.title), pdf.H1))
@@ -208,6 +225,8 @@ def plan_pdf(plan_id: int, patient: Patient = Depends(get_patient), db: Session 
             text.append(pdf.P(item.instructions, big))
         if item.notes:
             text.append(pdf.P("Hinweis: " + item.notes, pdf.ParagraphStyle("note", parent=big, textColor=pdf.GREY)))
+        if item.exercise and item.exercise.contraindications:
+            text.append(pdf.P("Vorsicht / nicht geeignet bei: " + item.exercise.contraindications, pdf.ParagraphStyle("contra", parent=big, textColor=pdf.GREY)))
         picture: list = []
         if item.exercise and item.exercise.image_path:
             path = storage.resolve(item.exercise.image_path)

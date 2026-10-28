@@ -79,6 +79,7 @@ class AttachmentKind(str, enum.Enum):
     photo = "photo"
     document = "document"
     drawing = "drawing"
+    signature = "signature"  # Unterschrift des Patienten (Leistungsnachweis je Behandlung)
 
 
 class GoalStatus(str, enum.Enum):
@@ -207,6 +208,9 @@ class Anamnesis(TimestampMixin, VoidableMixin, Base):
     # Liste der geprüften Warnzeichen-Schlüssel, die positiv sind (siehe catalog.RED_FLAGS)
     red_flags: Mapped[list[str]] = mapped_column(JSON, default=list)
     red_flags_notes: Mapped[str | None] = mapped_column(Text)
+    yellow_flags: Mapped[list[str]] = mapped_column(JSON, default=list)  # psychosoziale Risikofaktoren
+    social_history: Mapped[str | None] = mapped_column(Text)  # Beruf, Familie, Wohnsituation, Belastungen
+    sleep: Mapped[str | None] = mapped_column(Text)
     activity_sport: Mapped[str | None] = mapped_column(Text)
     goals: Mapped[str | None] = mapped_column(Text)
 
@@ -291,6 +295,9 @@ class Finding(TimestampMixin, VoidableMixin, Base):
     name: Mapped[str] = mapped_column(String(120))
     side: Mapped[Side] = mapped_column(_enum(Side), default=Side.none)
     value_num: Mapped[float | None] = mapped_column(Float)
+    # Neutral-Null-Methode: Gegenrichtung und Mittelwert (z. B. Knie Extension 0 - Neutral 0 - Flexion 130)
+    value_opposite: Mapped[float | None] = mapped_column(Float)
+    value_neutral: Mapped[float | None] = mapped_column(Float)
     value_text: Mapped[str | None] = mapped_column(String(32))
     unit: Mapped[str | None] = mapped_column(String(16))
     notes: Mapped[str | None] = mapped_column(Text)
@@ -373,7 +380,9 @@ class Prescription(TimestampMixin, VoidableMixin, Base):
     physician: Mapped[str | None] = mapped_column(String(200))
     diagnosis_text: Mapped[str | None] = mapped_column(Text)
     icd10_code: Mapped[str | None] = mapped_column(String(16))
+    diagnosis_group: Mapped[str | None] = mapped_column(String(16))  # Diagnosegruppe laut Katalog, z. B. WS
     indication_key: Mapped[str | None] = mapped_column(String(16))  # Indikationsschlüssel, z. B. WS1
+    leitsymptomatik: Mapped[str | None] = mapped_column(String(16))  # z. B. a, b, c, x
     measure: Mapped[str] = mapped_column(String(120))  # verordnetes Heilmittel
     total_units: Mapped[int] = mapped_column(Integer)
     frequency: Mapped[str | None] = mapped_column(String(64))  # z. B. 2x pro Woche
@@ -434,6 +443,10 @@ class Exercise(TimestampMixin, Base):
     default_sets: Mapped[int | None] = mapped_column(Integer)
     default_reps: Mapped[int | None] = mapped_column(Integer)
     default_hold_seconds: Mapped[int | None] = mapped_column(Integer)
+    contraindications: Mapped[str | None] = mapped_column(Text)  # "Nicht geeignet / Vorsicht bei …"
+    # Mitgelieferte Beispielübungen sind ungeprüft, bis eine Fachperson sie freigibt. Nur freigegebene Übungen werden gedruckt.
+    approved: Mapped[bool] = mapped_column(Boolean, default=True)
+    approved_by: Mapped[str | None] = mapped_column(String(128))
     image_path: Mapped[str | None] = mapped_column(String(300))
     image_content_type: Mapped[str | None] = mapped_column(String(64))
     archived: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -554,4 +567,39 @@ class Payment(TimestampMixin, VoidableMixin, Base):
     note: Mapped[str | None] = mapped_column(String(300))
 
     invoice: Mapped[Invoice] = relationship(back_populates="payments")
+    created_by: Mapped[User] = relationship()
+
+
+class IndicationEntry(TimestampMixin, Base):
+    """Eintrag des Heilmittelkatalogs, von der Praxis nach dem aktuellen Katalog gepflegt (Mengenprüfung bei Verordnungen)."""
+
+    __tablename__ = "indication_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(16), unique=True)  # Indikationsschlüssel
+    name: Mapped[str] = mapped_column(String(200))
+    max_units_per_rx: Mapped[int | None] = mapped_column(Integer)  # Höchstmenge je Verordnung
+    orienting_total_units: Mapped[int | None] = mapped_column(Integer)  # orientierende Behandlungsmenge je Diagnose
+    note: Mapped[str | None] = mapped_column(Text)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Examination(TimestampMixin, VoidableMixin, Base):
+    """Erstbefund / Untersuchung: Inspektion, Palpation, Funktion, Hypothese und ICF-Einordnung."""
+
+    __tablename__ = "examinations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    recorded_on: Mapped[date] = mapped_column(Date)
+    inspection: Mapped[str | None] = mapped_column(Text)
+    palpation: Mapped[str | None] = mapped_column(Text)
+    function: Mapped[str | None] = mapped_column(Text)  # Funktionsprüfung, Tests, Bewegungsanalyse
+    hypothesis: Mapped[str | None] = mapped_column(Text)  # physiotherapeutische Hypothese / Beurteilung
+    icf_body: Mapped[str | None] = mapped_column(Text)  # Körperfunktionen und -strukturen
+    icf_activity: Mapped[str | None] = mapped_column(Text)  # Aktivitäten
+    icf_participation: Mapped[str | None] = mapped_column(Text)  # Teilhabe
+    notes: Mapped[str | None] = mapped_column(Text)
+
     created_by: Mapped[User] = relationship()

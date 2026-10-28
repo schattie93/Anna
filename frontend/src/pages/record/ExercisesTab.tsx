@@ -48,13 +48,16 @@ export default function ExercisesTab({ patientId, entries, reload }: { patientId
               </li>
             ))}
           </ol>
-          {!p.voided && (
-            <p>
-              <a className="btn" href={`/api/patients/${patientId}/exercise-plans/${p.id}/pdf`} target="_blank" rel="noreferrer">
-                🖨 PDF / Drucken
-              </a>
-            </p>
-          )}
+          {!p.voided &&
+            (p.items.some((i) => !i.approved) ? (
+              <p className="ai-notice">Enthält noch nicht freigegebene Übungen ({p.items.filter((i) => !i.approved).map((i) => i.title).join(", ")}). Bitte in der Übungsbibliothek prüfen und freigeben, dann lässt sich der Plan drucken.</p>
+            ) : (
+              <p>
+                <a className="btn" href={`/api/patients/${patientId}/exercise-plans/${p.id}/pdf`} target="_blank" rel="noreferrer">
+                  🖨 PDF / Drucken
+                </a>
+              </p>
+            ))}
         </EntryCard>
       ))}
       {entries.some((p) => p.voided) && toggle}

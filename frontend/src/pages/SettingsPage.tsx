@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { api, type PracticeSettings, type Role, type User } from "../api";
+import { api, type Indication, type PracticeSettings, type Role, type User } from "../api";
 import { useAuth, useUser } from "../auth";
 import { ErrorBox, Select, TextField } from "../components/fields";
 import { useApi } from "../hooks";
@@ -13,6 +13,7 @@ export default function SettingsPage() {
       <PasswordForm />
       <SessionsCard />
       {user.role === "admin" && <PracticeForm />}
+      {user.role === "admin" && <IndicationCatalog />}
       {user.role === "admin" && <UserAdmin currentUserId={user.id} />}
     </div>
   );
@@ -215,6 +216,79 @@ function SessionsCard() {
           Auf allen Geräten abmelden
         </button>
       </div>
+    </section>
+  );
+}
+
+function IndicationCatalog() {
+  const { data, reload } = useApi<Indication[]>("/indications?include_inactive=true");
+  const [form, setForm] = useState({ key: "", name: "", max: "", orienting: "" });
+  const [error, setError] = useState<string | null>(null);
+  const toNum = (v: string) => (v.trim() ? Math.max(1, Number(v) || 1) : null);
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api("/indications", { method: "POST", body: { key: form.key, name: form.name, max_units_per_rx: toNum(form.max), orienting_total_units: toNum(form.orienting) } });
+      setForm({ key: "", name: "", max: "", orienting: "" });
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <section className="card stack">
+      <h2>Heilmittelkatalog der Praxis</h2>
+      <p className="muted">
+        Tragen Sie hier die Indikationsschlüssel mit Höchstmenge je Verordnung und orientierender Behandlungsmenge aus dem <strong>aktuellen</strong> Heilmittelkatalog ein. Die Software prüft damit die
+        Verordnungsmengen. Es sind bewusst keine Werte vorbelegt, damit nichts Veraltetes aus der Software übernommen wird.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Schlüssel</th>
+              <th>Bezeichnung</th>
+              <th>Höchstmenge je Verordnung</th>
+              <th>Orientierende Menge</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {(data ?? []).map((i) => (
+              <tr key={i.id} className={i.active ? undefined : "struck"}>
+                <td>{i.key}</td>
+                <td>{i.name}</td>
+                <td>{i.max_units_per_rx ?? "–"}</td>
+                <td>{i.orienting_total_units ?? "–"}</td>
+                <td className="row-actions">
+                  <button
+                    className="btn small"
+                    onClick={async () => {
+                      await api(`/indications/${i.id}`, { method: "PUT", body: { key: i.key, name: i.name, max_units_per_rx: i.max_units_per_rx, orienting_total_units: i.orienting_total_units, note: i.note, active: !i.active } });
+                      reload();
+                    }}
+                  >
+                    {i.active ? "Deaktivieren" : "Aktivieren"}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <form className="form-grid" onSubmit={add}>
+        <TextField label="Indikationsschlüssel" value={form.key} onChange={(v) => setForm({ ...form, key: v ?? "" })} required placeholder="z. B. WS1" />
+        <TextField label="Bezeichnung" value={form.name} onChange={(v) => setForm({ ...form, name: v ?? "" })} required />
+        <TextField label="Höchstmenge je Verordnung" type="number" value={form.max} onChange={(v) => setForm({ ...form, max: v ?? "" })} />
+        <TextField label="Orientierende Behandlungsmenge" type="number" value={form.orienting} onChange={(v) => setForm({ ...form, orienting: v ?? "" })} />
+        <div className="wide">
+          <ErrorBox error={error} />
+          <button className="btn primary">Eintrag hinzufügen</button>
+        </div>
+      </form>
     </section>
   );
 }

@@ -14,6 +14,8 @@ from .. import audit, pdf
 from ..db import get_db
 from ..deps import get_current_user, get_patient, require_admin, require_medical
 from ..models import (
+    Attachment,
+    AttachmentKind,
     Invoice,
     InvoiceItem,
     InvoiceStatus,
@@ -430,7 +432,7 @@ def gkv_rows(db: Session, date_from: date | None, date_to: date | None) -> list[
     for rx in db.scalars(stmt):
         patient = db.get(Patient, rx.patient_id)
         treatments = list(db.scalars(select(Treatment).where(Treatment.patient_id == rx.patient_id)))
-        info = evaluate(rx, treatments)
+        info = evaluate(rx, treatments, db=db)
         mine = sorted((t for t in treatments if t.prescription_id == rx.id and not t.voided), key=lambda t: t.treated_on)
         problems: list[str] = [w["text"] for w in info["warnings"] if w["level"] == "warn"]
         if not rx.physician:
@@ -441,6 +443,11 @@ def gkv_rows(db: Session, date_from: date | None, date_to: date | None) -> list[
             problems.append("Indikationsschlüssel fehlt")
         if not patient.insurance_number or not patient.insurance_name:
             problems.append("Kostenträger oder Versichertennummer fehlt")
+        final = [t for t in mine if t.status == TreatmentStatus.final]
+        signed = set(db.scalars(select(Attachment.treatment_id).where(Attachment.patient_id == rx.patient_id, Attachment.kind == AttachmentKind.signature, Attachment.voided.is_(False), Attachment.treatment_id.is_not(None))))
+        unsigned = [t for t in final if t.id not in signed]
+        if unsigned:
+            problems.append("Unterschrift (Leistungsnachweis) fehlt: " + ", ".join(f"{t.treated_on:%d.%m.%Y}" for t in unsigned))
         if any(t.status != TreatmentStatus.final for t in mine):
             problems.append("Entwurf-Behandlungen noch nicht abgeschlossen")
         if info["units_done"] == 0:

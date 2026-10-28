@@ -37,6 +37,7 @@ async def protect(request: Request, call_next):
     return response
 
 
+app.include_router(prescriptions.catalog_router)
 app.include_router(exercises.library)
 app.include_router(exercises.plans)
 
