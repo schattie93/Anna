@@ -634,3 +634,34 @@ class ExercisePlanOut(MedicalOut):
 
 Dashboard.model_rebuild()
 RxAttention.model_rebuild()
+
+
+# --- Lokale Assistenz ---------------------------------------------------------------
+
+
+class AssistStatus(BaseModel):
+    transcribe: bool
+    ocr: bool
+    suggest: bool
+
+
+class TextOut(BaseModel):
+    text: str
+
+
+class SuggestIn(BaseModel):
+    task: str
+    text: Annotated[str, StringConstraints(min_length=1, max_length=20000)]
+
+
+class SoapOut(BaseModel):
+    subjective: str | None
+    objective: str | None
+    assessment: str | None
+    plan: str | None
+    notice: str = "KI-Entwurf – bitte vollständig prüfen, bevor er übernommen wird."
+
+
+class DraftOut(BaseModel):
+    text: str
+    notice: str = "KI-Entwurf – bitte vollständig prüfen, bevor er übernommen wird."

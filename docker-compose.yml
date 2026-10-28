@@ -27,6 +27,14 @@ services:
     environment:
       PHYSIOFLOW_DATABASE_URL: postgresql+psycopg://physioflow:${POSTGRES_PASSWORD}@db:5432/physioflow
       PHYSIOFLOW_COOKIE_SECURE: "true"
+      PHYSIOFLOW_TIMEZONE: ${PHYSIOFLOW_TIMEZONE:-Europe/Berlin}
+      # Optionale lokale KI-Dienste (nur Adressen im eigenen Netz werden akzeptiert)
+      PHYSIOFLOW_WHISPER_URL: ${PHYSIOFLOW_WHISPER_URL:-}
+      PHYSIOFLOW_LLM_URL: ${PHYSIOFLOW_LLM_URL:-}
+      PHYSIOFLOW_LLM_MODEL: ${PHYSIOFLOW_LLM_MODEL:-llama3.1}
+    volumes:
+      # Bilder, PDFs, Zeichnungen (Benannte Volume: richtige Rechte; Backup siehe scripts/backup.sh)
+      - files:/app/data
 
   # HTTPS im lokalen Netz mit eigener Zertifizierungsstelle von Caddy ("tls internal").
   # Das Root-Zertifikat (data/caddy/pki/authorities/local/root.crt) einmalig auf PC und Tablets installieren.
@@ -42,3 +50,6 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./data/caddy:/data
+
+volumes:
+  files:

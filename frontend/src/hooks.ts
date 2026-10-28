@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Catalog } from "./api";
+import { api, type AssistStatus, type Catalog } from "./api";
 
 /** Lädt Daten von der API und bietet ein reload() nach Änderungen. */
 export function useApi<T>(path: string | null) {
@@ -33,4 +33,17 @@ export function useCatalog(): Catalog | null {
     catalogPromise.then(setCatalog, () => (catalogPromise = null));
   }, []);
   return catalog;
+}
+
+const NONE: AssistStatus = { transcribe: false, ocr: false, suggest: false };
+let assistPromise: Promise<AssistStatus> | null = null;
+
+/** Welche lokalen Assistenzfunktionen sind eingerichtet? (einmal laden, dann zwischenspeichern) */
+export function useAssistStatus(): AssistStatus {
+  const [status, setStatus] = useState<AssistStatus>(NONE);
+  useEffect(() => {
+    assistPromise ??= api<AssistStatus>("/assist/status").catch(() => NONE);
+    assistPromise.then(setStatus);
+  }, []);
+  return status;
 }

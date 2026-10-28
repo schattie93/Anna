@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { apiUpload } from "../api";
+import { useAssistStatus } from "../hooks";
 
 type Setter<T> = <K extends keyof T>(key: K, value: T[K]) => void;
 
@@ -56,6 +58,65 @@ export function TextField({ label, value, onChange, required, type = "text", hin
   );
 }
 
+/** Diktier-Taste: nimmt Sprache auf und lässt sie vom lokalen Spracherkennungsdienst in Text umwandeln. */
+export function DictationButton({ onText }: { onText: (text: string) => void }) {
+  const [state, setState] = useState<"idle" | "recording" | "busy">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const supported = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
+
+  async function toggle() {
+    setError(null);
+    if (state === "recording") {
+      recorder.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m));
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setState("busy");
+        try {
+          const type = rec.mimeType || "audio/webm";
+          const form = new FormData();
+          form.set("file", new File(chunks, type.includes("mp4") ? "diktat.mp4" : "diktat.webm", { type }));
+          const res = await apiUpload<{ text: string }>("/assist/transcribe", form);
+          if (res.text) onText(res.text);
+        } catch (e) {
+          setError((e as Error).message);
+        } finally {
+          setState("idle");
+        }
+      };
+      recorder.current = rec;
+      rec.start();
+      setState("recording");
+    } catch {
+      setError("Mikrofon nicht verfügbar (Zugriff erlauben; läuft die Seite über HTTPS?)");
+    }
+  }
+
+  return (
+    <span className="mic-wrap">
+      <button
+        type="button"
+        className={state === "recording" ? "mic recording" : "mic"}
+        onClick={toggle}
+        disabled={!supported || state === "busy"}
+        aria-label={state === "recording" ? "Aufnahme beenden" : "Diktieren"}
+        title={supported ? "Diktieren (lokale Spracherkennung)" : "Mikrofon nicht verfügbar"}
+      >
+        {state === "recording" ? "■" : state === "busy" ? "…" : "🎤"}
+      </button>
+      {error && <span className="mic-error">{error}</span>}
+    </span>
+  );
+}
+
 export function TextArea({
   label,
   value,
@@ -64,15 +125,20 @@ export function TextArea({
   rows = 3,
   placeholder,
 }: Omit<TextProps, "type" | "wide"> & { rows?: number }) {
+  const assist = useAssistStatus();
+  const append = (text: string) => onChange(`${value ? value.trimEnd() + " " : ""}${text}`);
   return (
     <Field label={label + (required ? " *" : "")} wide>
-      <textarea
-        rows={rows}
-        value={value ?? ""}
-        required={required}
-        placeholder={placeholder}
-        onChange={(e) => onChange(required ? e.target.value : blankToNull(e.target.value))}
-      />
+      <div className="textarea-wrap">
+        <textarea
+          rows={rows}
+          value={value ?? ""}
+          required={required}
+          placeholder={placeholder}
+          onChange={(e) => onChange(required ? e.target.value : blankToNull(e.target.value))}
+        />
+        {assist.transcribe && <DictationButton onText={append} />}
+      </div>
     </Field>
   );
 }

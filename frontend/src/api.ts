@@ -408,3 +408,17 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
+
+export interface AssistStatus {
+  transcribe: boolean;
+  ocr: boolean;
+  suggest: boolean;
+}
+
+export interface SoapSuggestion {
+  subjective: string | null;
+  objective: string | null;
+  assessment: string | null;
+  plan: string | null;
+  notice: string;
+}

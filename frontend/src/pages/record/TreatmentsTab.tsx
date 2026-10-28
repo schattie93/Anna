@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, type Catalog, type Diagnosis, type Prescription, type Treatment, type TreatmentData } from "../../api";
 import { Chips, ErrorBox, Field, PainScale, ReasonDialog, TextArea, TextField, useForm } from "../../components/fields";
+import SoapAssist from "../../components/SoapAssist";
 import { formatDate, formatDateTime, today } from "../../labels";
 import { Detail, EntryCard, TabHead, useVoidedToggle, type TabProps } from "./common";
 
@@ -209,6 +210,11 @@ function TreatmentForm({
         </Field>
         <Chips label="Maßnahmen" options={measureOptions} value={t.measures} onChange={(v) => set("measures", v)} />
       </section>
+
+      <SoapAssist
+        current={{ subjective: t.subjective, objective: t.objective, assessment: t.assessment, plan: t.plan }}
+        onApply={(f) => setAll({ ...t, ...f })}
+      />
 
       <section className="card form-grid">
         <PainScale label="Schmerz vor der Behandlung (NRS)" value={t.pain_before} onChange={(v) => set("pain_before", v)} />

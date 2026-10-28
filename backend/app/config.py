@@ -22,10 +22,12 @@ class Settings(BaseSettings):
     rx_urgent_start_days: int = 14
     rx_max_break_days: int = 14
     # Lokale Assistenzdienste (alle optional; nur Adressen im eigenen Netz sind erlaubt)
-    whisper_url: str | None = None
+    whisper_url: str | None = None  # OpenAI-kompatibel (/v1/audio/transcriptions), z. B. faster-whisper-server
+    whisper_model: str = "Systran/faster-whisper-small"
     ocr_enabled: bool = True
     llm_url: str | None = None
-    llm_model: str = "llama3.1"
+    llm_model: str = "llama3.1"  # OpenAI-kompatibel (/v1/chat/completions), z. B. Ollama auf einem Rechner im Praxisnetz
+    llm_timeout_seconds: int = 180
     # Directory containing the built frontend (index.html); served by the backend if present.
     frontend_dist: Path | None = None
 

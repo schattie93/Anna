@@ -1,7 +1,8 @@
 import { useRef, useState, type FormEvent } from "react";
 import { api, apiUpload, type Attachment, type AttachmentKind } from "../../api";
 import DrawingCanvas from "../../components/DrawingCanvas";
-import { ErrorBox, ReasonDialog, TextField } from "../../components/fields";
+import { ErrorBox, ReasonDialog, TextArea, TextField } from "../../components/fields";
+import { useAssistStatus } from "../../hooks";
 import Modal from "../../components/Modal";
 import { formatDate, today } from "../../labels";
 
@@ -23,6 +24,33 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<AttachmentKind | "all">("all");
+  const assist = useAssistStatus();
+  const [ocrText, setOcrText] = useState<string | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
+
+  async function runOcr(a: Attachment) {
+    setOcrBusy(true);
+    setError(null);
+    try {
+      const res = await api<Attachment>(`/patients/${patientId}/attachments/${a.id}/ocr`, { method: "POST" });
+      setOcrText(res.ocr_text ?? "");
+      reload();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setOcrBusy(false);
+    }
+  }
+
+  async function saveOcr(a: Attachment) {
+    try {
+      await api(`/patients/${patientId}/attachments/${a.id}`, { method: "PATCH", body: { ocr_text: ocrText?.trim() || null } });
+      reload();
+      setOpen(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
 
   const items = entries.filter((a) => !a.voided && (filter === "all" || a.kind === filter));
 
@@ -178,7 +206,7 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
       )}
 
       {open && (
-        <Modal title={open.caption ?? open.filename} onClose={() => setOpen(null)} wide>
+        <Modal title={open.caption ?? open.filename} onClose={() => { setOpen(null); setOcrText(null); }} wide>
           <p className="muted">
             {KIND_LABEL[open.kind]} · {formatDate(open.taken_on)} · {open.created_by.full_name}
           </p>
@@ -191,7 +219,23 @@ export default function FilesTab({ patientId, entries, reload }: { patientId: nu
           ) : (
             <img className="viewer" src={fileUrl(patientId, open)} alt={open.caption ?? open.filename} />
           )}
+          {(ocrText !== null || open.ocr_text) && (
+            <div className="stack">
+              <TextArea label="Erkannter Text (bitte prüfen und korrigieren)" value={ocrText ?? open.ocr_text} onChange={setOcrText} rows={6} />
+              <div className="actions">
+                <button className="btn primary" onClick={() => saveOcr(open)}>
+                  Text speichern
+                </button>
+              </div>
+            </div>
+          )}
+          <ErrorBox error={error} />
           <div className="actions">
+            {assist.ocr && (
+              <button className="btn" onClick={() => runOcr(open)} disabled={ocrBusy}>
+                {ocrBusy ? "Erkenne Text …" : "Text erkennen (OCR)"}
+              </button>
+            )}
             {open.content_type !== "application/pdf" && (
               <button className="btn" onClick={() => {
                   setDrawing({ background: fileUrl(patientId, open), parent: open });
