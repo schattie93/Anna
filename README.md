@@ -54,6 +54,8 @@ docker compose up -d --build
 # https://<PHYSIOFLOW_HOST> öffnen, Administratorkonto anlegen, Caddy-Root-Zertifikat auf den Geräten installieren
 ```
 
+Mit **Portainer** (z. B. ASUSTOR) ohne Kommandozeile: Git-Stack mit `docker-compose.portainer.yml`, Schritt für Schritt in `docs/BETRIEB.md`, Abschnitt 2a.
+
 - **Keine Portfreigabe im Router.** PhysioFlow ist nur im lokalen Netz erreichbar.
 - **Backups:** `scripts/backup.sh` täglich, `scripts/restore-test.sh` mindestens vierteljährlich. Das System warnt den Administrator bei veralteten Backups. **RAID ist kein Backup.**
 - Passwort vergessen: `docker compose exec app python -m app.cli reset-password <benutzername>`

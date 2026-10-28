@@ -1,0 +1,85 @@
+# PhysioFlow – Variante für Portainer-Stacks („Build method: Repository“), z. B. auf einem ASUSTOR-NAS.
+#
+# Unterschied zu docker-compose.yml:
+# - Keine relativen Pfade (./Caddyfile, ./data/...). Portainer klont Git-Stacks in sein eigenes
+#   Datenverzeichnis; relative Bind-Mounts zeigen dort ins Leere (Docker legt leere Ordner an,
+#   Caddy findet keine Caddyfile). Deshalb nur benannte Volumes.
+# - Die Caddy-Konfiguration steht direkt hier (gleicher Inhalt wie die Caddyfile im Repo).
+# - HTTPS-Port einstellbar (Standard 8443), damit er nicht mit der NAS-Oberfläche kollidiert.
+#
+# In Portainer unter „Environment variables“ setzen:
+#   POSTGRES_PASSWORD   langes Zufallspasswort (nur Buchstaben und Ziffern)
+#   PHYSIOFLOW_HOST     IP oder Name des NAS, ohne https:// und ohne Port
+#   PHYSIOFLOW_HTTPS_PORT (optional, Standard 8443)
+#
+# Aufruf danach: https://<PHYSIOFLOW_HOST>:<PHYSIOFLOW_HTTPS_PORT>
+# Keine Portfreigabe im Router einrichten! Zugriff nur aus dem lokalen Netz.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: physioflow
+      POSTGRES_USER: physioflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD in Portainer setzen}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U physioflow -d physioflow"]
+      interval: 10s
+      retries: 5
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]
+
+  app:
+    build: .
+    image: physioflow-app:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PHYSIOFLOW_DATABASE_URL: postgresql+psycopg://physioflow:${POSTGRES_PASSWORD}@db:5432/physioflow
+      PHYSIOFLOW_COOKIE_SECURE: "true"
+      PHYSIOFLOW_TIMEZONE: ${PHYSIOFLOW_TIMEZONE:-Europe/Berlin}
+      PHYSIOFLOW_WHISPER_URL: ${PHYSIOFLOW_WHISPER_URL:-}
+      PHYSIOFLOW_LLM_URL: ${PHYSIOFLOW_LLM_URL:-}
+      PHYSIOFLOW_LLM_MODEL: ${PHYSIOFLOW_LLM_MODEL:-llama3.1}
+    volumes:
+      - files:/app/data
+
+  # HTTPS im lokalen Netz mit Caddys eigener Zertifizierungsstelle („tls internal“).
+  # Die Caddyfile wird beim Start aus diesem Text erzeugt; {$PHYSIOFLOW_HOST} liest Caddy selbst
+  # aus der Umgebung ($$ verhindert, dass Compose die Variable vorher ersetzt).
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "${PHYSIOFLOW_HTTPS_PORT:-8443}:443"
+    environment:
+      PHYSIOFLOW_HOST: ${PHYSIOFLOW_HOST:?PHYSIOFLOW_HOST in Portainer setzen}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cat > /etc/caddy/Caddyfile <<'EOF'
+        {
+        	# Browser schicken beim Aufruf per IP keinen Servernamen (SNI). Ohne diese Zeile
+        	# sucht Caddy ein Zertifikat für die interne Container-IP und der TLS-Aufbau scheitert.
+        	default_sni {$$PHYSIOFLOW_HOST}
+        }
+        {$$PHYSIOFLOW_HOST} {
+        	tls internal
+        	encode gzip
+        	header Strict-Transport-Security "max-age=31536000"
+        	reverse_proxy app:8000
+        }
+        EOF
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    volumes:
+      - caddy_data:/data
+
+volumes:
+  pgdata:
+  files:
+  caddy_data:

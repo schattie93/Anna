@@ -24,6 +24,43 @@ docker compose up -d --build
 
 Die Datenbank läuft nur im internen Docker-Netz. Der App-Container hat keinen veröffentlichten Port. Erreichbar ist nur Caddy auf 80/443.
 
+## 2a. Installation mit Portainer (z. B. ASUSTOR, zum Testen)
+
+Ohne Kommandozeile: Portainer klont das Repository selbst, baut das Image und startet alle Container. Dafür gibt es die eigene Datei **`docker-compose.portainer.yml`**.
+
+**Warum eine eigene Datei?** Portainer legt Git-Stacks in seinem eigenen Datenverzeichnis ab. Relative Pfade wie `./Caddyfile` oder `./data/postgres` zeigen dort ins Leere: Docker legt dann leere Ordner an, und Caddy startet ohne Konfiguration nicht. Die Portainer-Variante nutzt deshalb nur benannte Volumes, erzeugt die Caddy-Konfiguration beim Start selbst (gleicher Inhalt wie die `Caddyfile`) und lauscht standardmäßig auf Port **8443** statt 443, damit nichts mit der NAS-Oberfläche kollidiert. Außerdem ist `default_sni` gesetzt: Beim Aufruf per IP schicken Browser keinen Servernamen mit, und Caddy würde sonst ein Zertifikat für die interne Container-IP suchen.
+
+**Portainer auf dem ASUSTOR:** In ADM unter **App Central** die Apps **Docker Engine** und **Portainer CE** installieren. Portainer ist dann unter `https://<NAS-IP>:19943` erreichbar. Das Startpasswort für `admin` steht in `/Docker/PortainerCE/portainer_password.txt` (ADM File Explorer).
+
+**Stack anlegen:**
+
+1. Portainer → Umgebung **local** → **Stacks** → **Add stack**
+2. Name: `physioflow`
+3. Build method: **Repository**
+   - Repository URL: `https://github.com/schattie93/Anna`
+   - Repository reference: `refs/heads/claude/physiotherapy-management-app-cend0z`
+   - Compose path: `docker-compose.portainer.yml`
+4. **Environment variables** (am einfachsten über *Advanced mode* als Text einfügen):
+   ```
+   POSTGRES_PASSWORD=langesZufallspasswortNurBuchstabenUndZiffern
+   PHYSIOFLOW_HOST=192.168.178.20
+   ```
+   - `PHYSIOFLOW_HOST` ist die IP (oder der Name) des NAS, **ohne** `https://` und ohne Port.
+   - Im Passwort keine Sonderzeichen wie `@ / : #`. Es wird in die Datenbankadresse eingebaut.
+   - Optional `PHYSIOFLOW_HTTPS_PORT=…`, falls 8443 schon belegt ist.
+5. **Deploy the stack.** Der erste Build dauert auf dem NAS mehrere Minuten (Frontend, Python, Texterkennung). Den Fortschritt zeigt Portainer; Fehler stehen unter **Containers → physioflow-app-1 → Logs**.
+6. Im Browser `https://<NAS-IP>:8443` öffnen und die Zertifikatswarnung bestätigen (für Tests ausreichend). Beim ersten Aufruf wird das Administratorkonto angelegt.
+
+**Fiktive Testdaten:** Containers → `physioflow-app-1` → **Console** → *Connect* → `python -m app.cli seed-demo`. Danach ist die Anmeldung mit `demo` / `demo-passwort` möglich. Nur auf einer leeren Datenbank; nie mit echten Patientendaten mischen.
+
+**Root-Zertifikat** (damit die Warnung verschwindet): Containers → `physioflow-proxy-1` → Console → `cat /data/caddy/pki/authorities/local/root.crt`, den Text als `root.crt` speichern und auf den Geräten als vertrauenswürdig installieren.
+
+**Aktualisieren:** Stack öffnen → **Pull and redeploy**, dabei *Re-pull image and redeploy* aktivieren, damit das App-Image neu gebaut wird. Die Daten in den Volumes bleiben erhalten.
+
+**Komplett zurücksetzen** (alle Testdaten weg): Stack löschen, danach unter **Volumes** die Volumes `physioflow_pgdata`, `physioflow_files` und `physioflow_caddy_data` entfernen.
+
+**Grenzen dieser Variante:** Die Skripte `backup.sh`, `restore.sh` und `restore-test.sh` erwarten die normale `docker-compose.yml` im Projektordner und laufen hier nicht direkt. Für den Produktivbetrieb deshalb die Installation aus Abschnitt 2 verwenden (oder die Skripte anpassen). Die Datei wurde formal mit `docker compose config` geprüft; ein vollständiger Start auf dem NAS steht noch aus.
+
 ## 3. Aktualisieren
 
 ```bash
